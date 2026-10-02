@@ -11,9 +11,9 @@ HX711 balanca;
 
 // declarações de variaveis
 const float fator_calibracao = 419.5;
-
 const int num_leituras = 5;
 const float variacao_max = 0.02;
+float peso_final = 0;
 
 float leituras[num_leituras];
 

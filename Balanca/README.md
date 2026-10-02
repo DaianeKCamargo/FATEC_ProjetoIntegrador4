@@ -36,6 +36,32 @@ O projeto utiliza o PlatformIO com:
 - Plataforma `espressif32`;
 - Biblioteca `bogde/HX711`.
 
+## COMO RODAR O PROJETO
+
+1. Instale o Visual Studio Code e a extensao PlatformIO IDE.
+2. Clone o repositorio e abra a pasta `Balanca` no Visual Studio Code.
+3. Aguarde o PlatformIO instalar automaticamente a plataforma ESP32 e a biblioteca `bogde/HX711`.
+4. Conecte o ESP32 ao computador usando um cabo USB.
+5. Compile o projeto pelo PlatformIO ou execute no terminal:
+
+	```bash
+	pio run
+	```
+
+6. Envie o programa para o ESP32:
+
+	```bash
+	pio run --target upload
+	```
+
+7. Abra o monitor serial para acompanhar as leituras:
+
+	```bash
+	pio device monitor --baud 115200
+	```
+
+Para executar a simulacao, instale a extensao Wokwi for VS Code, abra o arquivo `diagram.json` no Visual Studio Code e inicie a simulacao pela extensao. O monitor serial do Wokwi exibira as mensagens do programa. Antes de iniciar, compile o projeto com `pio run` para gerar os arquivos necessarios.
+
 ## FUNCIONAMENTO DO PROGRAMA
 
 ### Bibliotecas e pinos
