@@ -17,7 +17,7 @@ float peso_final = 0;
 
 float leituras[num_leituras];
 
-// setup onde queremos que a execução seja feita apenas 1x 
+// setup onde queremos que a execução seja feita apenas 1x
 void setup()
 {
   Serial.begin(115200);
@@ -88,8 +88,20 @@ void loop()
 
     if (variacao <= variacao_max)
     {
+      float soma = 0;
+
+      for (int i = 0; i < num_leituras; i++)
+      {
+        soma += leituras[i];
+      }
+
+      peso_final = soma / num_leituras;
 
       Serial.println("PESO ESTAVEL!");
+
+      Serial.print("Peso final da doacao: ");
+      Serial.print(peso_final, 2);
+      Serial.println(" kg");
     }
     else
     {
