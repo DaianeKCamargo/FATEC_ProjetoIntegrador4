@@ -1,10 +1,15 @@
 // import de bibliotecas
 #include <Arduino.h>
 #include <HX711.h>
+#include <WiFi.h>
 
 // definição de portas
 #define DT 4
 #define SCK 5
+
+// definindo a rede wifi
+const char * SSID = "Wokwi-GUEST";
+const char * SENHA = "";
 
 // criação do objeto balanca onde HX711 é o tipo (importado da biblioteca) e balanca o objeto criado.
 HX711 balanca;
@@ -17,10 +22,31 @@ float peso_final = 0;
 
 float leituras[num_leituras];
 
+// Função de conexão
+void conectar_wifi()
+{
+  Serial.print("Conectando-se a rede Wi-Fi: ");
+  Serial.println(SSID);
+
+  WiFi.begin(SSID, SENHA);
+
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(1000);
+    Serial.println("Conectando...");
+  }
+
+  Serial.println("Conectado com sucesso!");
+  Serial.print("Endereço IP: ");
+  Serial.println(WiFi.localIP());
+}
+
 // setup onde queremos que a execução seja feita apenas 1x
 void setup()
 {
   Serial.begin(115200);
+
+  conectar_wifi();
 
   Serial.println("================================");
   Serial.println("SISTEMA DE DOACAO DE TAMPINHAS");
