@@ -1,98 +1,343 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
+
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useColorScheme,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
-
 export default function HomeScreen() {
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+
+  const colors = {
+    background: isDark ? '#121A16' : '#F7FBF5',
+    surface: isDark ? '#202C25' : '#FFFFFF',
+    text: isDark ? '#F1F8F2' : '#173D2B',
+    secondary: isDark ? '#B9CDBF' : '#5C7163',
+    green: isDark ? '#70D995' : '#168447',
+    greenDark: isDark ? '#173D29' : '#E0F5E5',
+    blue: isDark ? '#203D50' : '#DDF2FF',
+    yellow: isDark ? '#494024' : '#FFF1C9',
+    pink: isDark ? '#492B38' : '#FFE2E8',
+    border: isDark ? '#34443A' : '#E2EDE2',
+  };
+
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: colors.background }]}
+      edges={['top']}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Cabeçalho */}
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.logoCircle,
+              { backgroundColor: colors.greenDark },
+            ]}
+          >
+            <Text style={styles.logoEmoji}>♻️</Text>
+          </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <Text style={[styles.appName, { color: colors.text }]}>
+            Doe suas{'\n'}Tampinhas
+          </Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+          <Text style={[styles.subtitle, { color: colors.secondary }]}>
+            Pequenas atitudes,{'\ngrandes transformações!'}
+          </Text>
+        </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        {/* Ilustração */}
+        <View
+          style={[
+            styles.illustration,
+            { backgroundColor: colors.greenDark },
+          ]}
+        >
+          <View style={styles.capRow}>
+            <View style={[styles.cap, { backgroundColor: '#2389E8' }]}>
+              <Text style={styles.capText}>●</Text>
+            </View>
+
+            <View style={[styles.cap, { backgroundColor: '#F05252' }]}>
+              <Text style={styles.capText}>●</Text>
+            </View>
+
+            <View style={[styles.cap, { backgroundColor: '#F5BD32' }]}>
+              <Text style={styles.capText}>●</Text>
+            </View>
+
+            <View style={[styles.cap, { backgroundColor: '#36AC69' }]}>
+              <Text style={styles.capText}>●</Text>
+            </View>
+          </View>
+
+          <Text style={styles.jarEmoji}>🫙</Text>
+
+          <View
+            style={[
+              styles.illustrationLabel,
+              { backgroundColor: colors.surface },
+            ]}
+          >
+            <Text style={[styles.illustrationText, { color: colors.green }]}>
+              Cada tampinha conta!
+            </Text>
+          </View>
+
+          <Text style={styles.leafEmoji}>🌱</Text>
+        </View>
+
+        {/* Apresentação */}
+        <View style={styles.intro}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>
+            Vamos fazer a diferença?
+          </Text>
+
+          <Text style={[styles.description, { color: colors.secondary }]}>
+            Suas tampinhas podem ajudar a preservar o meio ambiente
+            e contribuir para projetos sociais. Separe suas tampinhas
+            e venha fazer parte dessa iniciativa!
+          </Text>
+        </View>
+
+        {/* Benefícios */}
+        <View style={styles.benefits}>
+          <View
+            style={[
+              styles.benefitCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={[styles.benefitIcon, { backgroundColor: colors.greenDark }]}>
+              <Text style={styles.benefitEmoji}>🌿</Text>
+            </View>
+            <Text style={[styles.benefitTitle, { color: colors.text }]}>
+              Cuide do planeta
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.benefitCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={[styles.benefitIcon, { backgroundColor: colors.yellow }]}>
+              <Text style={styles.benefitEmoji}>🤝</Text>
+            </View>
+            <Text style={[styles.benefitTitle, { color: colors.text }]}>
+              Apoie boas causas
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.benefitCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={[styles.benefitIcon, { backgroundColor: colors.pink }]}>
+              <Text style={styles.benefitEmoji}>💚</Text>
+            </View>
+            <Text style={[styles.benefitTitle, { color: colors.text }]}>
+              Faça a diferença
+            </Text>
+          </View>
+        </View>
+
+        {/* Botão para iniciar a doação */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Começar uma doação"
+          onPress={() => {
+            // Na próxima etapa, vamos abrir o leitor de QR Code.
+          }}
+          style={({ pressed }) => [
+            styles.donateButton,
+            { backgroundColor: colors.green },
+            pressed && styles.buttonPressed,
+          ]}
+        >
+          <Text style={styles.buttonEmoji}>📷</Text>
+          <Text style={styles.buttonText}>Começar uma doação</Text>
+          <Text style={styles.buttonArrow}>→</Text>
+        </Pressable>
+
+        <Text style={[styles.footerText, { color: colors.secondary }]}>
+          Escaneie o QR Code do ponto de coleta{'\n'}
+          e comece sua doação!
+        </Text>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
   safeArea: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
   },
-  heroSection: {
+  scrollContent: {
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 32,
+  },
+  header: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  logoCircle: {
+    width: 76,
+    height: 76,
+    borderRadius: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
   },
-  title: {
+  logoEmoji: {
+    fontSize: 42,
+  },
+  appName: {
+    fontSize: 32,
+    fontWeight: '800',
+    textAlign: 'center',
+    lineHeight: 37,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    lineHeight: 23,
+  },
+  illustration: {
+    minHeight: 210,
+    marginTop: 26,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 18,
+    overflow: 'hidden',
+  },
+  capRow: {
+    flexDirection: 'row',
+    gap: 12,
+    zIndex: 1,
+  },
+  cap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  capText: {
+    color: '#FFFFFF',
+    fontSize: 17,
+  },
+  jarEmoji: {
+    fontSize: 88,
+    marginTop: -2,
+  },
+  illustrationLabel: {
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 20,
+  },
+  illustrationText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  leafEmoji: {
+    position: 'absolute',
+    right: 16,
+    bottom: 12,
+    fontSize: 34,
+  },
+  intro: {
+    marginTop: 28,
+    gap: 10,
+  },
+  sectionTitle: {
+    fontSize: 23,
+    fontWeight: '800',
     textAlign: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
+  description: {
+    fontSize: 15,
+    lineHeight: 23,
+    textAlign: 'center',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  benefits: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 24,
+  },
+  benefitCard: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 5,
+    borderRadius: 18,
+    borderWidth: 1,
+  },
+  benefitIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  benefitEmoji: {
+    fontSize: 25,
+  },
+  benefitTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 9,
+    lineHeight: 17,
+  },
+  donateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginTop: 28,
+    minHeight: 60,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+  },
+  buttonPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  buttonEmoji: {
+    fontSize: 22,
+  },
+  buttonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    flexShrink: 1,
+  },
+  buttonArrow: {
+    color: '#FFFFFF',
+    fontSize: 25,
+    fontWeight: '700',
+  },
+  footerText: {
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+    marginTop: 14,
   },
 });
