@@ -9,7 +9,8 @@
       "@/assets/*": [
         "./assets/*"
       ]
-    }
+    },
+    "moduleResolution": "bundler",
   },
   "include": [
     "**/*.ts",
