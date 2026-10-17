@@ -8,7 +8,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
+import { router } from 'expo-router';
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -160,6 +160,7 @@ export default function HomeScreen() {
           accessibilityLabel="Começar uma doação"
           onPress={() => {
             // Na próxima etapa, vamos abrir o leitor de QR Code.
+            router.push('/ler-qr');
           }}
           style={({ pressed }) => [
             styles.donateButton,
