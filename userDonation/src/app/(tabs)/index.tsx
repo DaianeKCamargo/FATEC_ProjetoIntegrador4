@@ -1,6 +1,5 @@
 
 import {
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,7 +7,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -51,7 +50,7 @@ export default function HomeScreen() {
           </Text>
 
           <Text style={[styles.subtitle, { color: colors.secondary }]}>
-            Pequenas atitudes,{'\ngrandes transformações!'}
+            Pequenas atitudes,{'\n'}grandes transformações!
           </Text>
         </View>
 
@@ -154,28 +153,25 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Botão para iniciar a doação */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Começar uma doação"
-          onPress={() => {
-            // Na próxima etapa, vamos abrir o leitor de QR Code.
-            router.push('/ler-qr');
-          }}
-          style={({ pressed }) => [
+        {/* Orientação para uso do QR Code */}
+        <View
+          style={[
             styles.donateButton,
-            { backgroundColor: colors.green },
-            pressed && styles.buttonPressed,
+            {
+              backgroundColor: colors.greenDark,
+              borderWidth: 1,
+              borderColor: colors.border,
+            },
           ]}
         >
-          <Text style={styles.buttonEmoji}>📷</Text>
-          <Text style={styles.buttonText}>Começar uma doação</Text>
-          <Text style={styles.buttonArrow}>→</Text>
-        </Pressable>
+          <Text style={styles.buttonEmoji}>📱</Text>
+          <Text style={[styles.instructionText, { color: colors.text }]}>
+            Para doar, escaneie o QR Code do ponto de coleta
+          </Text>
+        </View>
 
         <Text style={[styles.footerText, { color: colors.secondary }]}>
-          Escaneie o QR Code do ponto de coleta{'\n'}
-          e comece sua doação!
+          Consulte as orientações de coleta diretamente pelo navegador.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -315,25 +311,17 @@ const styles = StyleSheet.create({
     marginTop: 28,
     minHeight: 60,
     paddingHorizontal: 12,
+    paddingVertical: 12,
     borderRadius: 18,
-  },
-  buttonPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
   },
   buttonEmoji: {
     fontSize: 22,
   },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+  instructionText: {
+    fontSize: 15,
     fontWeight: '800',
     flexShrink: 1,
-  },
-  buttonArrow: {
-    color: '#FFFFFF',
-    fontSize: 25,
-    fontWeight: '700',
+    textAlign: 'center',
   },
   footerText: {
     fontSize: 13,
