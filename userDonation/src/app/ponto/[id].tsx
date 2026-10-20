@@ -1,10 +1,11 @@
 
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import {
   ScrollView,
   StyleSheet,
   Text,
   View,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -137,8 +138,23 @@ export default function PontoScreen() {
           </Text>
         </View>
 
+        <Pressable
+            style={styles.donationButton}
+            onPress={() =>
+                router.push({
+                pathname: '/doacao',
+                params: { pontoId: ponto.id },
+                })
+            }
+            >
+            <Text style={styles.donationButtonText}>
+                Iniciar doação
+            </Text>
+            <Text style={styles.donationButtonIcon}>→</Text>
+        </Pressable>
+
         <Text style={styles.footer}>
-          Tampets • Cada tampinha conta 💚
+        Tampets • Cada tampinha conta 💚
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -146,10 +162,31 @@ export default function PontoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7FBF5',
-  },
+    container: {
+        flex: 1,
+        backgroundColor: '#F7FBF5',
+    },
+    donationButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#168447',
+        borderRadius: 16,
+        paddingVertical: 17,
+        paddingHorizontal: 20,
+        marginTop: 24,
+        gap: 10,
+    },
+    donationButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '800',
+    },
+    donationButtonIcon: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: '800',
+    },
   content: {
     padding: 22,
     paddingBottom: 36,
