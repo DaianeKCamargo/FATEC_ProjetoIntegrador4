@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
   Pressable,
@@ -10,29 +10,188 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+const API_URL = 'https://fatec-balanca.vercel.app';
+
+type Doacao = {
+  id: number | string;
+  peso: number | string;
+  quantidadeTampinhas: number | string;
+  pontoId?: string | null;
+  createdAt?: string;
+};
+
+async function buscarUltimaDoacao(
+  pontoId: string
+): Promise<Doacao | null> {
+  const resposta = await fetch(
+    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/ultima-doacao`
+  );
+
+  // O ponto ainda pode não ter nenhuma doação registrada.
+  if (resposta.status === 404) {
+    return null;
+  }
+
+  if (!resposta.ok) {
+    throw new Error(`Erro HTTP ${resposta.status}`);
+  }
+
+  return (await resposta.json()) as Doacao;
+}
+
 export default function DoacaoScreen() {
-  const { pontoId } = useLocalSearchParams<{ pontoId: string }>();
+  const { pontoId: parametroPonto } =
+    useLocalSearchParams<{ pontoId?: string }>();
+
+  const pontoId = Array.isArray(parametroPonto)
+    ? parametroPonto[0]
+    : parametroPonto;
+
   const [status, setStatus] = useState<
     'idle' | 'waiting' | 'finished'
   >('idle');
 
-  function iniciarPesagem() {
-    setStatus('waiting');
+  const [peso, setPeso] = useState<number | null>(null);
+  const [quantidade, setQuantidade] = useState<number | null>(null);
+  const [baselineLoaded, setBaselineLoaded] = useState(false);
+  const [erro, setErro] = useState('');
 
-    setTimeout(() => {
-      setStatus('finished');
-    }, 2000);
+  // Guarda o ID da última doação existente antes de iniciar a espera.
+  const ultimoIdRef = useRef<string | null>(null);
+  const pollingRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ao abrir a tela, registra qual era a última doação do ponto.
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarReferencia() {
+      if (!pontoId) {
+        setErro('Ponto de coleta não identificado. Volte ao leitor de QR Code.');
+        return;
+      }
+
+      try {
+        const doacao = await buscarUltimaDoacao(pontoId);
+
+        if (!ativo) return;
+
+        ultimoIdRef.current = doacao ? String(doacao.id) : null;
+        setBaselineLoaded(true);
+        setErro('');
+      } catch {
+        if (!ativo) return;
+
+        setErro(
+          'Não foi possível conectar à API. Verifique sua conexão e tente novamente.'
+        );
+      }
+    }
+
+    carregarReferencia();
+
+    return () => {
+      ativo = false;
+      pollingRef.current = false;
+
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, [pontoId]);
+
+  async function iniciarPesagem() {
+    if (!pontoId || status === 'waiting') return;
+
+    setErro('');
+
+    // Se a consulta inicial falhou, tenta novamente antes de esperar.
+    if (!baselineLoaded) {
+      try {
+        const doacao = await buscarUltimaDoacao(pontoId);
+
+        ultimoIdRef.current = doacao ? String(doacao.id) : null;
+        setBaselineLoaded(true);
+      } catch {
+        setErro(
+          'Não foi possível consultar a API. Verifique a conexão e tente novamente.'
+        );
+        return;
+      }
+    }
+
+    setPeso(null);
+    setQuantidade(null);
+    setStatus('waiting');
+    pollingRef.current = true;
+
+    async function consultarNovaDoacao() {
+      if (!pollingRef.current) return;
+
+      try {
+        const doacao = await buscarUltimaDoacao(pontoId);
+
+        if (!pollingRef.current) return;
+
+        // Só aceita um registro diferente do que existia antes.
+        if (
+          doacao &&
+          String(doacao.id) !== ultimoIdRef.current
+        ) {
+          const pesoRecebido = Number(doacao.peso);
+          const quantidadeRecebida = Number(
+            doacao.quantidadeTampinhas
+          );
+
+          if (
+            !Number.isFinite(pesoRecebido) ||
+            pesoRecebido <= 0 ||
+            !Number.isFinite(quantidadeRecebida)
+          ) {
+            throw new Error('Dados da doação inválidos.');
+          }
+
+          ultimoIdRef.current = String(doacao.id);
+          setPeso(pesoRecebido);
+          setQuantidade(quantidadeRecebida);
+          setErro('');
+          setStatus('finished');
+          pollingRef.current = false;
+          return;
+        }
+
+        setErro('');
+      } catch {
+        if (pollingRef.current) {
+          setErro(
+            'Falha temporária ao consultar a API. Tentando novamente...'
+          );
+        }
+      }
+
+      if (pollingRef.current) {
+        timerRef.current = setTimeout(
+          consultarNovaDoacao,
+          2000
+        );
+      }
+    }
+
+    consultarNovaDoacao();
   }
 
   function confirmarDoacao() {
-  router.replace({
-    pathname: '/sucesso-doacao',
-    params: {
-      pontoId: pontoId ?? 'Não identificado',
-      peso: '0.75',
-    },
-  });
-}
+    if (peso === null || quantidade === null) return;
+
+    router.replace({
+      pathname: '/sucesso-doacao',
+      params: {
+        pontoId: pontoId ?? 'Não identificado',
+        peso: String(peso),
+        quantidadeTampinhas: String(quantidade),
+      },
+    });
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,63 +227,82 @@ export default function DoacaoScreen() {
           </Text>
 
           <Text style={styles.weightValue}>
-            {status === 'finished' ? '0,75' : '— —'}
+            {status === 'finished' && peso !== null
+              ? peso.toFixed(2).replace('.', ',')
+              : '— —'}
           </Text>
 
           <Text style={styles.unit}>kg</Text>
+
+          {status === 'finished' && quantidade !== null && (
+            <Text style={styles.quantityText}>
+              Aproximadamente {quantidade} tampinhas
+            </Text>
+          )}
 
           <View style={styles.statusBadge}>
             <View
               style={[
                 styles.statusDot,
                 status === 'waiting' && styles.waitingDot,
+                status === 'finished' && styles.finishedDot,
               ]}
             />
 
             <Text style={styles.statusText}>
-              {status === 'idle'
-                ? 'Balança não conectada'
+              {!pontoId
+                ? 'Ponto não identificado'
                 : status === 'waiting'
-                  ? 'Realizando pesagem...'
-                  : 'Pesagem simulada concluída'}
+                  ? 'Aguardando doação da balança...'
+                  : status === 'finished'
+                    ? 'Doação recebida com sucesso'
+                    : baselineLoaded
+                      ? 'Conectado à API'
+                      : 'Conectando à API...'}
             </Text>
           </View>
         </View>
 
+        {!!erro && (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{erro}</Text>
+          </View>
+        )}
+
         <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            Como funciona?
-          </Text>
+          <Text style={styles.infoTitle}>Como funciona?</Text>
 
           <Text style={styles.infoText}>
             1. Coloque as tampinhas na balança.
           </Text>
-
           <Text style={styles.infoText}>
-            2. Inicie a pesagem pelo aplicativo.
+            2. Inicie a espera pelo aplicativo.
           </Text>
-
           <Text style={styles.infoText}>
-            3. Confira o peso registrado.
+            3. Aguarde o registro da balança na API.
+          </Text>
+          <Text style={styles.infoText}>
+            4. Confira o peso e a quantidade estimada.
           </Text>
         </View>
 
-        <Pressable
-          style={[
-            styles.button,
-            status === 'waiting' && styles.buttonDisabled,
-          ]}
-          onPress={iniciarPesagem}
-          disabled={status === 'waiting'}
-        >
-          <Text style={styles.buttonText}>
-            {status === 'waiting'
-              ? 'Realizando pesagem...'
-              : status === 'finished'
-                ? 'Pesar novamente'
+        {status !== 'finished' && (
+          <Pressable
+            style={[
+              styles.button,
+              status === 'waiting' && styles.buttonDisabled,
+              !pontoId && styles.buttonDisabled,
+            ]}
+            onPress={iniciarPesagem}
+            disabled={status === 'waiting' || !pontoId}
+          >
+            <Text style={styles.buttonText}>
+              {status === 'waiting'
+                ? 'Aguardando doação...'
                 : 'Iniciar pesagem'}
-          </Text>
-        </Pressable>
+            </Text>
+          </Pressable>
+        )}
 
         {status === 'finished' && (
           <Pressable
@@ -138,13 +316,22 @@ export default function DoacaoScreen() {
         )}
 
         <Text style={styles.disclaimer}>
-          A pesagem real estará disponível após a
-          integração com a balança.
+          O peso e a quantidade são obtidos da API após o
+          registro da balança. A quantidade de tampinhas é uma
+          estimativa baseada em 2 g por unidade.
         </Text>
 
         <Pressable
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => {
+            pollingRef.current = false;
+
+            if (timerRef.current) {
+              clearTimeout(timerRef.current);
+            }
+
+            router.back();
+          }}
         >
           <Text style={styles.backButtonText}>
             Voltar ao leitor
@@ -243,6 +430,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: -2,
   },
+  quantityText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 12,
+  },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -260,6 +453,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0C36A',
   },
   waitingDot: {
+    backgroundColor: '#8BD5A3',
+  },
+  finishedDot: {
     backgroundColor: '#8BD5A3',
   },
   statusText: {
@@ -302,7 +498,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 14,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 22,
   },
   buttonText: {
     color: '#FFFFFF',
@@ -315,6 +511,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     textAlign: 'center',
     marginTop: 12,
+  },
+  errorCard: {
+    backgroundColor: '#FCEBE8',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+  },
+  errorText: {
+    color: '#9B3026',
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
   },
   backButton: {
     alignItems: 'center',
