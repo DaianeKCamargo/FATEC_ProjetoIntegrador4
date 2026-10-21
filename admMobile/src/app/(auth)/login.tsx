@@ -1,3 +1,6 @@
+
+import { useRouter } from "expo-router";
+import { realizarLogin, salvarToken } from "@/services/authService";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import {
@@ -14,6 +17,7 @@ import {
 } from "react-native";
 
 export default function Login() {
+  const router = useRouter();
   const { width } = useWindowDimensions();
   const isWideScreen = width >= 800;
 
@@ -25,36 +29,49 @@ export default function Login() {
   const [senha, setSenha] = useState("");
   const [email, setEmail] = useState("");
   const [senhaVisivel, setSenhaVisivel] = useState(false);
+  const [carregando, setCarregando] = useState(false);
+  const [erroLogin, setErroLogin] = useState("");
 
-  function handleSubmit() {
-    if (activeTab === "login") {
-      if (!usuario.trim() || !senha) {
-        Alert.alert(
-          "Campos obrigatórios",
-          "Preencha seu usuário e sua senha."
-        );
-        return;
-      }
-
-      // TODO: integrar com o endpoint de autenticação da API.
-      Alert.alert(
-        "Login",
-        "A interface está pronta. A autenticação será conectada à API."
-      );
-    } else {
+  async function handleSubmit() {
+    if (activeTab === "recuperar") {
       if (!email.trim()) {
-        Alert.alert(
-          "Campo obrigatório",
-          "Informe seu e-mail para recuperar a senha."
-        );
+        setErroLogin("Informe seu e-mail.");
         return;
       }
 
-      // TODO: integrar com o serviço de recuperação de senha.
       Alert.alert(
         "Recuperar senha",
-        "A recuperação de senha será conectada à API."
+        "A recuperação de senha ainda será integrada à API."
       );
+      return;
+    }
+
+    if (!usuario.trim() || !senha) {
+      setErroLogin("Preencha seu usuário e sua senha.");
+      return;
+    }
+
+    if (carregando) return;
+
+    setCarregando(true);
+    setErroLogin("");
+
+    try {
+      const resultado = await realizarLogin(usuario.trim(), senha);
+
+      await salvarToken(resultado.token);
+
+      setSenha("");
+
+      router.replace("/(admin)/dash-registration");
+    } catch (erro) {
+      setErroLogin(
+        erro instanceof Error
+          ? erro.message
+          : "Não foi possível realizar o login."
+      );
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -130,7 +147,10 @@ export default function Login() {
                     styles.tab,
                     activeTab === "login" && styles.activeTab,
                   ]}
-                  onPress={() => setActiveTab("login")}
+                  onPress={() => {
+                    setActiveTab("login");
+                    setErroLogin("");
+                  }}
                   accessibilityRole="tab"
                   accessibilityState={{
                     selected: activeTab === "login",
@@ -153,7 +173,10 @@ export default function Login() {
                     activeTab === "recuperar" &&
                       styles.activeTab,
                   ]}
-                  onPress={() => setActiveTab("recuperar")}
+                  onPress={() => {
+                    setActiveTab("recuperar");
+                    setErroLogin("");
+                  }}
                   accessibilityRole="tab"
                   accessibilityState={{
                     selected: activeTab === "recuperar",
@@ -249,9 +272,21 @@ export default function Login() {
                 </>
               )}
 
+              {/* Mensagem de erro */}
+              {erroLogin ? (
+                <Text
+                  accessibilityRole="alert"
+                  style={styles.errorText}
+                >
+                  {erroLogin}
+                </Text>
+              ) : null}
+
+              {/* Botão de envio */}
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handleSubmit}
+                disabled={carregando}
                 accessibilityRole="button"
                 style={styles.submitButton}
               >
@@ -262,9 +297,11 @@ export default function Login() {
                   style={styles.submitGradient}
                 >
                   <Text style={styles.submitText}>
-                    {activeTab === "login"
-                      ? "Entrar"
-                      : "Enviar instruções"}
+                    {carregando
+                      ? "Entrando..."
+                      : activeTab === "login"
+                        ? "Entrar"
+                        : "Enviar instruções"}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -272,7 +309,10 @@ export default function Login() {
               {activeTab === "recuperar" && (
                 <TouchableOpacity
                   style={styles.backButton}
-                  onPress={() => setActiveTab("login")}
+                  onPress={() => {
+                    setActiveTab("login");
+                    setErroLogin("");
+                  }}
                 >
                   <Text style={styles.backButtonText}>
                     Voltar para o login
@@ -475,6 +515,11 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#657DA4",
     paddingLeft: 8,
+  },
+  errorText: {
+    color: "#B91C1C",
+    fontSize: 13,
+    marginBottom: 12,
   },
   submitButton: {
     borderRadius: 8,
