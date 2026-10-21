@@ -1,12 +1,5 @@
-
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SucessoDoacaoScreen() {
@@ -15,187 +8,133 @@ export default function SucessoDoacaoScreen() {
     peso: string;
   }>();
 
+  const pesoFormatado = (peso ?? '0.75').replace('.', ',');
+
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-[#FAFCF9]" edges={['top']}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        className="flex-1"
+        contentContainerClassName="flex-grow justify-center px-5 py-8"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.successIcon}>
-          <Text style={styles.check}>✓</Text>
-        </View>
+        {/* Confirmação */}
+        <View className="items-center">
+          <View className="h-[100px] w-[100px] items-center justify-center rounded-full border border-[#C5E6CE] bg-[#E5F5E9]">
+            <View className="h-[68px] w-[68px] items-center justify-center rounded-full bg-[#CDEBD5]">
+              <Text className="text-[45px] font-extrabold text-[#176638]">
+                ✓
+              </Text>
+            </View>
+          </View>
 
-        <Text style={styles.title}>
-          Doação confirmada!
-        </Text>
+          <View className="mt-5 flex-row items-center gap-2 rounded-full border border-[#B8DFC4] bg-[#E5F5E9] px-3 py-1.5">
+            <View className="h-2 w-2 rounded-full bg-[#247A45]" />
+            <Text className="text-[12px] font-bold text-[#185C32]">
+              CONFIRMAÇÃO
+            </Text>
+          </View>
 
-        <Text style={styles.description}>
-          Obrigado por fazer parte dessa mudança.
-          Cada tampinha conta para um futuro melhor!
-        </Text>
-
-        <View style={styles.weightCard}>
-          <Text style={styles.weightLabel}>
-            PESO DA DOAÇÃO
+          <Text className="mt-3 text-center text-[28px] font-extrabold leading-[35px] text-[#193B29]">
+            Doação confirmada!
           </Text>
 
-          <Text style={styles.weightValue}>
-            {(peso ?? '0.75').replace('.', ',')} kg
-          </Text>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.pointLabel}>
-            PONTO DE COLETA
-          </Text>
-
-          <Text style={styles.pointValue}>
-            📍 {pontoId ?? 'Não identificado'}
+          <Text className="mt-2.5 max-w-[330px] text-center text-[15px] leading-[23px] text-[#43594A]">
+            Obrigado por fazer parte dessa mudança. Cada tampinha conta para
+            um futuro melhor!
           </Text>
         </View>
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>
-            Você fez a diferença! 🌱
-          </Text>
+        {/* Resumo da doação */}
+        <View className="mt-7 overflow-hidden rounded-[24px] border border-[#D4E7D8] bg-white shadow-[0px_10px_28px_rgba(34,90,53,0.07)]">
+          <View className="bg-[#E5F5E9] px-5 py-4">
+            <Text className="text-[12px] font-extrabold tracking-[1.2px] text-[#245D38]">
+              RESUMO DA DOAÇÃO
+            </Text>
+          </View>
 
-          <Text style={styles.infoText}>
-            Sua contribuição ajuda a incentivar a
-            reciclagem e o descarte correto de tampinhas.
+          <View className="p-5">
+            <Text className="text-[13px] font-semibold text-[#43594A]">
+              Peso informado
+            </Text>
+
+            <View className="mt-1 flex-row items-baseline">
+              <Text className="text-[38px] font-extrabold leading-[46px] text-[#176638]">
+                {pesoFormatado}
+              </Text>
+              <Text className="ml-2 text-[17px] font-bold text-[#245D38]">
+                kg
+              </Text>
+            </View>
+
+            <View className="my-5 h-px bg-[#E1ECE3]" />
+
+            <Text className="text-[12px] font-bold tracking-[1px] text-[#526758]">
+              PONTO DE COLETA
+            </Text>
+
+            <View className="mt-3 flex-row items-start gap-3">
+              <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#E5F5E9]">
+                <Text className="text-[22px]">📍</Text>
+              </View>
+
+              <View className="min-w-0 flex-1 justify-center">
+                <Text className="text-[15px] font-extrabold leading-[22px] text-[#193B29]">
+                  {pontoId ?? 'Não identificado'}
+                </Text>
+                <Text className="mt-1 text-[13px] leading-5 text-[#526758]">
+                  Identificação do ponto desta doação
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Impacto positivo */}
+        <View className="mt-5 flex-row items-start gap-3 rounded-[20px] border border-[#CDE6D3] bg-[#F0F8F1] p-4">
+          <View className="h-11 w-11 items-center justify-center rounded-full bg-[#D8EFDE]">
+            <Text className="text-[24px]">🌱</Text>
+          </View>
+
+          <View className="min-w-0 flex-1">
+            <Text className="text-[16px] font-extrabold text-[#193B29]">
+              Você fez a diferença!
+            </Text>
+
+            <Text className="mt-1.5 text-[14px] leading-[21px] text-[#43594A]">
+              Sua contribuição ajuda a incentivar a reciclagem e o descarte
+              correto de tampinhas.
+            </Text>
+          </View>
+        </View>
+
+        {/* Aviso transparente */}
+        <View className="mt-4 flex-row items-start gap-2 rounded-[14px] bg-[#F0F2EF] p-3.5">
+          <Text className="text-[16px]">ℹ️</Text>
+
+          <Text className="min-w-0 flex-1 text-[12px] leading-[18px] text-[#414B43]">
+            Esta é uma confirmação demonstrativa. A doação ainda não foi
+            salva no banco de dados.
           </Text>
         </View>
 
+        {/* Ação principal */}
         <Pressable
-          style={styles.button}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar ao início"
+          className="mt-6 min-h-[56px] flex-row items-center justify-center gap-2 rounded-[16px] border border-[#176638] bg-[#176638] px-5 py-4 active:bg-[#124F2B]"
           onPress={() => router.replace('/(tabs)')}
         >
-          <Text style={styles.buttonText}>
+          <Text className="text-[16px] font-extrabold text-white">
             Voltar ao início
           </Text>
+          <Text className="text-[19px] font-bold text-white">→</Text>
         </Pressable>
 
-        <Text style={styles.disclaimer}>
-          Registro demonstrativo. A doação ainda não foi
-          salva no banco de dados.
+        {/* Rodapé */}
+        <Text className="mt-5 text-center text-[12px] font-semibold text-[#526758]">
+          Tampets • Cada tampinha conta 💚
         </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7FBF5',
-    paddingHorizontal: 24,
-  },
-  content: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 32,
-  },
-  successIcon: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: '#DDF3E2',
-    alignSelf: 'center',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  check: {
-    color: '#168447',
-    fontSize: 56,
-    fontWeight: '800',
-  },
-  title: {
-    color: '#173D2B',
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  description: {
-    color: '#5C7163',
-    fontSize: 15,
-    lineHeight: 23,
-    textAlign: 'center',
-    marginTop: 12,
-    marginBottom: 28,
-  },
-  weightCard: {
-    backgroundColor: '#173D2B',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-  },
-  weightLabel: {
-    color: '#C8E6D0',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  weightValue: {
-    color: '#FFFFFF',
-    fontSize: 42,
-    fontWeight: '800',
-    marginTop: 12,
-  },
-  divider: {
-    width: '100%',
-    height: 1,
-    backgroundColor: '#426650',
-    marginVertical: 22,
-  },
-  pointLabel: {
-    color: '#C8E6D0',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  pointValue: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 10,
-    textAlign: 'center',
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#DCE8DD',
-    borderRadius: 18,
-    padding: 18,
-    marginTop: 20,
-  },
-  infoTitle: {
-    color: '#173D2B',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  infoText: {
-    color: '#5C7163',
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 8,
-  },
-  button: {
-    backgroundColor: '#168447',
-    paddingVertical: 17,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  disclaimer: {
-    color: '#718174',
-    fontSize: 11,
-    lineHeight: 17,
-    textAlign: 'center',
-    marginTop: 14,
-  },
-});
