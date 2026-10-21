@@ -1,12 +1,5 @@
-
 import { router, useLocalSearchParams } from 'expo-router';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Pressable,
-} from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { collectionPoints } from '@/constants/collection-points';
@@ -55,18 +48,24 @@ export default function PontoScreen() {
   const pontoId = Array.isArray(id) ? id[0] : id;
 
   const ponto = collectionPoints.find(
-    (item) => item.id.toUpperCase() === pontoId?.toUpperCase()
+    (item) => item.id.toUpperCase() === pontoId?.toUpperCase(),
   );
 
   if (!ponto || ponto.status !== 'active') {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.notFound}>
-          <Text style={styles.notFoundIcon}>📍</Text>
-          <Text style={styles.title}>Ponto não encontrado</Text>
-          <Text style={styles.description}>
-            Confira o QR Code ou entre em contato com o responsável
-            pelo ponto de coleta.
+      <SafeAreaView className="flex-1 bg-white" edges={['top']}>
+        <View className="flex-1 items-center justify-center px-7">
+          <View className="mb-5 h-[84px] w-[84px] items-center justify-center rounded-full border border-[rgba(95,129,183,0.15)] bg-[#EDF6FF]">
+            <Text className="text-[42px]">📍</Text>
+          </View>
+
+          <Text className="text-center text-[25px] font-extrabold text-[#1F2B3D]">
+            Ponto não encontrado
+          </Text>
+
+          <Text className="mt-3 text-center text-[15px] leading-[23px] text-[#4F5D72]">
+            Confira o QR Code ou entre em contato com o responsável pelo ponto
+            de coleta.
           </Text>
         </View>
       </SafeAreaView>
@@ -74,283 +73,136 @@ export default function PontoScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-white" edges={['top']}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        className="flex-1"
+        contentContainerClassName="px-[22px] pb-9 pt-5"
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <Text style={styles.brand}>TAMPETS ♻️</Text>
-          <Text style={styles.eyebrow}>PONTO DE COLETA</Text>
-          <Text style={styles.title}>{ponto.name}</Text>
-          <Text style={styles.address}>{ponto.address}</Text>
-
-          <View style={styles.statusBadge}>
-            <View style={styles.statusDot} />
-            <Text style={styles.statusText}>Ponto ativo</Text>
-          </View>
-        </View>
-
-        <View style={styles.welcomeCard}>
-          <Text style={styles.welcomeTitle}>
-            Sua atitude transforma! 🌱
-          </Text>
-          <Text style={styles.welcomeText}>
-            Veja como preparar e pesar suas tampinhas antes de
-            entregá-las neste ponto de coleta.
-          </Text>
-        </View>
-
-        <Text style={styles.sectionTitle}>
-          Como fazer sua doação
-        </Text>
-        <Text style={styles.sectionDescription}>
-          Siga as etapas abaixo para realizar o procedimento.
-        </Text>
-
-        {steps.map((step) => (
-          <View key={step.number} style={styles.stepCard}>
-            <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>
-                {step.number}
-              </Text>
-            </View>
-
-            <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>{step.title}</Text>
-              <Text style={styles.stepDescription}>
-                {step.description}
-              </Text>
-            </View>
-
-            <Text style={styles.stepIcon}>{step.icon}</Text>
-          </View>
-        ))}
-
-        <View style={styles.notice}>
-          <Text style={styles.noticeTitle}>
-            Antes de começar
-          </Text>
-          <Text style={styles.noticeText}>
-            A pesagem deve seguir as orientações do responsável
-            pelo local. Esta página é um tutorial: ela não mede
-            o peso nem registra uma doação automaticamente.
-          </Text>
-        </View>
-
-        <Pressable
-            style={styles.donationButton}
-            onPress={() =>
-                router.push({
-                pathname: '/doacao',
-                params: { pontoId: ponto.id },
-                })
-            }
-            >
-            <Text style={styles.donationButtonText}>
-                Iniciar doação
+        {/* Cabeçalho do ponto */}
+        <View className="rounded-[28px] border border-[rgba(95,129,183,0.12)] bg-[#2C4D7D] p-6 shadow-[0px_14px_30px_rgba(80,80,80,0.10)]">
+          <View className="mb-7 flex-row items-center justify-between">
+            <Text className="text-[15px] font-extrabold text-[#D9E9FF]">
+              TAMPETS ♻️
             </Text>
-            <Text style={styles.donationButtonIcon}>→</Text>
+
+            <View className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5">
+              <Text className="text-[10px] font-bold tracking-[1.5px] text-white">
+                DOAÇÃO
+              </Text>
+            </View>
+          </View>
+
+          <Text className="text-[11px] font-bold tracking-[1.8px] text-[#D9E9FF]">
+            PONTO DE COLETA
+          </Text>
+
+          <Text className="mt-2 text-[27px] font-extrabold leading-[33px] text-white">
+            {ponto.name}
+          </Text>
+
+          <Text className="mt-2.5 text-[14px] leading-[21px] text-[#E0EAF8]">
+            {ponto.address}
+          </Text>
+
+          <View className="mt-[18px] flex-row items-center gap-[7px] self-start rounded-full border border-white/10 bg-white/10 px-3 py-2">
+            <View className="h-2 w-2 rounded-full bg-[#8BD5A3]" />
+            <Text className="text-xs font-bold text-white">Ponto ativo</Text>
+          </View>
+        </View>
+
+        {/* Mensagem de boas-vindas */}
+        <View className="mt-[22px] rounded-[22px] border border-[rgba(95,129,183,0.14)] bg-[#EDF6FF] p-5">
+          <View className="mb-3 h-11 w-11 items-center justify-center rounded-full bg-white/80">
+            <Text className="text-[25px]">🌱</Text>
+          </View>
+
+          <Text className="text-[19px] font-extrabold text-[#1F2B3D]">
+            Sua atitude transforma!
+          </Text>
+
+          <Text className="mt-2 text-[14px] leading-[22px] text-[#4F5D72]">
+            Veja como preparar e pesar suas tampinhas antes de entregá-las
+            neste ponto de coleta.
+          </Text>
+        </View>
+
+        {/* Introdução das etapas */}
+        <View className="mt-7">
+          <Text className="text-[23px] font-extrabold text-[#1F2B3D]">
+            Como fazer sua doação
+          </Text>
+
+          <Text className="mt-[7px] text-[14px] leading-[21px] text-[#4F5D72]">
+            Siga as etapas abaixo para realizar o procedimento.
+          </Text>
+        </View>
+
+        {/* Etapas */}
+        <View className="mt-4 gap-3">
+          {steps.map((step) => (
+            <View
+              key={step.number}
+              className="flex-row items-start gap-3 rounded-[20px] border border-[rgba(95,129,183,0.16)] bg-white p-4 shadow-[0px_8px_18px_rgba(80,80,80,0.05)]"
+            >
+              <View className="h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full bg-[#EDF6FF]">
+                <Text className="text-[16px] font-extrabold text-[#2C4D7D]">
+                  {step.number}
+                </Text>
+              </View>
+
+              <View className="min-w-0 flex-1">
+                <Text className="text-[15px] font-extrabold text-[#1F2B3D]">
+                  {step.title}
+                </Text>
+
+                <Text className="mt-1.5 text-[13px] leading-5 text-[#4F5D72]">
+                  {step.description}
+                </Text>
+              </View>
+
+              <Text className="ml-1 text-[23px]">{step.icon}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Aviso */}
+        <View className="mt-4 rounded-[20px] border border-[rgba(218,190,37,0.28)] bg-[#FFF9E8] p-[18px]">
+          <View className="mb-2 flex-row items-center gap-2">
+            <Text className="text-[20px]">💡</Text>
+            <Text className="text-[15px] font-extrabold text-[#77520A]">
+              Antes de começar
+            </Text>
+          </View>
+
+          <Text className="text-[13px] leading-5 text-[#775F2B]">
+            A pesagem deve seguir as orientações do responsável pelo local.
+            Esta página é um tutorial: ela não mede o peso nem registra uma
+            doação automaticamente.
+          </Text>
+        </View>
+
+        {/* Botão para iniciar a doação */}
+        <Pressable
+          className="mt-6 min-h-[58px] flex-row items-center justify-center gap-2.5 rounded-[18px] bg-[#2C4D7D] px-5 py-[17px] shadow-[0px_10px_22px_rgba(44,77,125,0.20)] active:opacity-80"
+          onPress={() =>
+            router.push({
+              pathname: '/doacao',
+              params: { pontoId: ponto.id },
+            })
+          }
+        >
+          <Text className="text-[16px] font-extrabold text-white">
+            Iniciar doação
+          </Text>
+          <Text className="text-[20px] font-extrabold text-white">→</Text>
         </Pressable>
 
-        <Text style={styles.footer}>
-        Tampets • Cada tampinha conta 💚
+        {/* Rodapé */}
+        <Text className="mt-7 text-center text-[12px] text-[#718096]">
+          Tampets • Cada tampinha conta 💚
         </Text>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F7FBF5',
-    },
-    donationButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#168447',
-        borderRadius: 16,
-        paddingVertical: 17,
-        paddingHorizontal: 20,
-        marginTop: 24,
-        gap: 10,
-    },
-    donationButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '800',
-    },
-    donationButtonIcon: {
-        color: '#FFFFFF',
-        fontSize: 20,
-        fontWeight: '800',
-    },
-  content: {
-    padding: 22,
-    paddingBottom: 36,
-  },
-  header: {
-    backgroundColor: '#173D2B',
-    borderRadius: 24,
-    padding: 24,
-  },
-  brand: {
-    color: '#BCE6C6',
-    fontSize: 15,
-    fontWeight: '800',
-    marginBottom: 28,
-  },
-  eyebrow: {
-    color: '#BCE6C6',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  title: {
-    color: '#FFFFFF',
-    fontSize: 27,
-    fontWeight: '800',
-    marginTop: 8,
-  },
-  address: {
-    color: '#E0EDE3',
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 10,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 7,
-    backgroundColor: '#28543D',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginTop: 18,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#8BD5A3',
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  welcomeCard: {
-    backgroundColor: '#DFF2E3',
-    padding: 20,
-    borderRadius: 18,
-    marginTop: 22,
-  },
-  welcomeTitle: {
-    color: '#173D2B',
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  welcomeText: {
-    color: '#456451',
-    fontSize: 14,
-    lineHeight: 22,
-    marginTop: 8,
-  },
-  sectionTitle: {
-    color: '#173D2B',
-    fontSize: 22,
-    fontWeight: '800',
-    marginTop: 30,
-  },
-  sectionDescription: {
-    color: '#5C7163',
-    fontSize: 14,
-    lineHeight: 21,
-    marginTop: 7,
-    marginBottom: 16,
-  },
-  stepCard: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#DCE8DD',
-    gap: 12,
-  },
-  stepNumber: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: '#DFF2E3',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepNumberText: {
-    color: '#168447',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  stepContent: {
-    flex: 1,
-  },
-  stepTitle: {
-    color: '#173D2B',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  stepDescription: {
-    color: '#5C7163',
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 6,
-  },
-  stepIcon: {
-    fontSize: 24,
-  },
-  notice: {
-    backgroundColor: '#FFF5DD',
-    borderRadius: 16,
-    padding: 18,
-    marginTop: 12,
-  },
-  noticeTitle: {
-    color: '#77520A',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  noticeText: {
-    color: '#775F2B',
-    fontSize: 13,
-    lineHeight: 20,
-    marginTop: 7,
-  },
-  footer: {
-    color: '#718174',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 28,
-  },
-  notFound: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 28,
-  },
-  notFoundIcon: {
-    fontSize: 42,
-    marginBottom: 12,
-  },
-  description: {
-    color: '#5C7163',
-    fontSize: 15,
-    lineHeight: 23,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-});
