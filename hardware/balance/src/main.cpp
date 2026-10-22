@@ -12,7 +12,7 @@
 // definindo a rede wifi
 const char *SSID = "Wokwi-GUEST";
 const char *SENHA = "";
-const char *PONTO_ID = "PONTO_001";
+const char *PONTO_ID = "PONTO-001";
 
 // criação do objeto balanca onde HX711 é o tipo (importado da biblioteca) e balanca o objeto criado.
 HX711 balanca;

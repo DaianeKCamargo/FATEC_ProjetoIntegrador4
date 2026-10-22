@@ -1,10 +1,18 @@
 
 require("dotenv").config();
 
+const cors = require("cors");
 const express = require("express");
 const { neon } = require("./node_modules/@neondatabase/serverless");
 
 const app = express();
+
+app.use(cors({
+    origin: [
+        "http://localhost:8081",
+        "https://doetampinhas.vercel.app"
+    ]
+}));
 
 app.use(express.json());
 
