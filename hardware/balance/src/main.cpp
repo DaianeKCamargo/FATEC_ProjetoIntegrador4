@@ -1,242 +1,223 @@
-// import de bibliotecas
+
 #include <Arduino.h>
 #include <HX711.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
-// definição de portas
+// Definicao dos pinos
 #define DT 4
 #define SCK 5
 
-// definindo a rede wifi
-const char *SSID = "Wokwi-GUEST";
-const char *SENHA = "";
-const char *PONTO_ID = "PONTO-001";
+// Configuracao Wi-Fi
+const char* SSID = "Wokwi-GUEST";
+const char* SENHA = "";
 
-// criação do objeto balanca onde HX711 é o tipo (importado da biblioteca) e balanca o objeto criado.
+// Deve ser igual ao identificador do QR Code
+const char* PONTO_ID = "PONTO-001";
+
+// Endereco da API
+const char* API_BASE_URL = "https://fatec-balanca.vercel.app";
+
+// Configuracao da balanca
 HX711 balanca;
 
-// declarações de variaveis
-const float fator_calibracao = 419.5; // ajustar na aplicação real
+const float fator_calibracao = 419.5;
 const int num_leituras = 5;
-const float variacao_max = 0.02; // ajustar na aplicação real
-float peso_final = 0;
 const float peso_minimo = 0.05;
 
-float leituras[num_leituras];
+// Intervalo entre verificacoes da sessao
+const unsigned long intervalo_leitura = 1000;
+unsigned long ultima_leitura = 0;
 
-// Controle para nao enviar a mesma doacao repetidamente
-bool doacao_enviada = false;
 
-// Função de conexão
+// Conecta ao Wi-Fi
 void conectar_wifi()
 {
-  Serial.print("Conectando-se a rede Wi-Fi: ");
-  Serial.println(SSID);
+    Serial.print("Conectando ao Wi-Fi: ");
+    Serial.println(SSID);
 
-  WiFi.begin(SSID, SENHA);
+    WiFi.begin(SSID, SENHA);
 
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(1000);
-    Serial.println("Conectando...");
-  }
+    while (WiFi.status() != WL_CONNECTED)
+    {
+        delay(500);
+        Serial.println("Conectando...");
+    }
 
-  Serial.println("Conectado com sucesso!");
-  Serial.print("Endereço IP: ");
-  Serial.println(WiFi.localIP());
+    Serial.println("Wi-Fi conectado!");
+    Serial.print("Endereco IP: ");
+    Serial.println(WiFi.localIP());
 }
 
-// Função para enviar a doação para a API
-// aqui a função evita enviar uma doação que tenha falhado mas não evita enviar em duplicidade, sendo assim na aplicação real deve haver um controlador como um identificador unico para cada doação, que pode ser o timestamp da doação ou um ID gerado pelo sistema.
-bool enviarDoacao(float peso)
+
+// Verifica se existe uma sessao de pesagem ativa
+bool verificarSessaoAtiva()
 {
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    Serial.println("Erro: Wi-Fi desconectado!");
-    return false;
-  }
-
-  WiFiClientSecure cliente;
-  cliente.setInsecure(); // Apenas para teste no Wokwi - mudar essa parte na aplicação real para usar certificados válidos.
-
-  HTTPClient https;
-
-  const char *url =
-      "https://fatec-balanca.vercel.app/doacoes";
-
-  if (!https.begin(cliente, url))
-  {
-    Serial.println("Erro ao iniciar conexao HTTPS!");
-    return false;
-  }
-
-  https.addHeader("Content-Type", "application/json");
-
-  String corpoJSON = "{\"peso\":";
-  corpoJSON += String(peso, 2);
-  corpoJSON += ",\"pontoId\":\"";
-  corpoJSON += PONTO_ID;
-  corpoJSON += "\"}";
-
-  Serial.println("Enviando doacao para a API...");
-  Serial.print("JSON enviado: ");
-  Serial.println(corpoJSON);
-
-  int codigoHTTP = https.POST(corpoJSON);
-
-  if (codigoHTTP > 0)
-  {
-    Serial.print("Codigo HTTP: ");
-    Serial.println(codigoHTTP);
-
-    String resposta = https.getString();
-
-    Serial.println("Resposta da API:");
-    Serial.println(resposta);
-
-    if (codigoHTTP >= 200 && codigoHTTP < 300)
+    if (WiFi.status() != WL_CONNECTED)
     {
-      Serial.println("Doacao enviada com sucesso!");
-      https.end();
-      return true;
+        return false;
+    }
+
+    WiFiClientSecure cliente;
+    cliente.setInsecure(); // Somente para testes no Wokwi
+
+    HTTPClient https;
+
+    String url = String(API_BASE_URL) +
+                 "/pontos/" + PONTO_ID +
+                 "/pesagem/atual";
+
+    if (!https.begin(cliente, url))
+    {
+        Serial.println("Erro ao consultar a sessao.");
+        return false;
+    }
+
+    https.setTimeout(3000);
+
+    int codigoHTTP = https.GET();
+
+    // A API retorna 200 quando existe uma sessao ativa.
+    // Retorna 404 quando nao existe sessao ativa.
+    bool ativa = (codigoHTTP == 200);
+
+    if (codigoHTTP < 0)
+    {
+        Serial.print("Falha na consulta: ");
+        Serial.println(https.errorToString(codigoHTTP));
+    }
+
+    https.end();
+
+    return ativa;
+}
+
+
+// Envia uma leitura temporaria para a API
+bool enviarLeitura(float peso)
+{
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        Serial.println("Wi-Fi desconectado!");
+        return false;
+    }
+
+    WiFiClientSecure cliente;
+    cliente.setInsecure(); // Somente para testes no Wokwi
+
+    HTTPClient https;
+
+    String url = String(API_BASE_URL) +
+                 "/pontos/" + PONTO_ID +
+                 "/pesagem/leitura";
+
+    if (!https.begin(cliente, url))
+    {
+        Serial.println("Erro ao iniciar requisicao HTTPS.");
+        return false;
+    }
+
+    https.setTimeout(3000);
+    https.addHeader("Content-Type", "application/json");
+
+    String corpoJSON = "{\"peso\":";
+    corpoJSON += String(peso, 3);
+    corpoJSON += "}";
+
+    int codigoHTTP = https.POST(corpoJSON);
+
+    if (codigoHTTP > 0)
+    {
+        if (codigoHTTP >= 200 && codigoHTTP < 300)
+        {
+            Serial.print("Leitura enviada: ");
+            Serial.print(peso, 3);
+            Serial.println(" kg");
+        }
+        else
+        {
+            Serial.print("Erro HTTP ao enviar leitura: ");
+            Serial.println(codigoHTTP);
+            Serial.println(https.getString());
+        }
     }
     else
     {
-      Serial.println("A API retornou um erro HTTP.");
+        Serial.print("Falha no envio: ");
+        Serial.println(https.errorToString(codigoHTTP));
     }
-  }
-  else
-  {
-    Serial.print("Falha na requisicao: ");
-    Serial.println(https.errorToString(codigoHTTP));
-  }
 
-  https.end();
-  return false;
+    https.end();
+
+    return codigoHTTP >= 200 && codigoHTTP < 300;
 }
 
-// setup onde queremos que a execução seja feita apenas uma vez.
+
+// Inicializacao
 void setup()
 {
-  Serial.begin(115200);
+    Serial.begin(115200);
 
-  conectar_wifi();
+    Serial.println("==============================");
+    Serial.println("SISTEMA DE DOACAO DE TAMPINHAS");
+    Serial.println("==============================");
 
-  Serial.println("================================");
-  Serial.println("SISTEMA DE DOACAO DE TAMPINHAS");
-  Serial.println("Iniciando balanca...");
-  Serial.println("================================");
+    conectar_wifi();
 
-  balanca.begin(DT, SCK);
+    balanca.begin(DT, SCK);
 
-  Serial.println("HX711 configurado!");
+    Serial.println("HX711 configurado!");
 }
 
-// onde queremos que a execução seja feita repetidas vezes.
+
+// Execucao continua
 void loop()
 {
-  Serial.println("HX711 pronto? ");
-
-  // primeira condição para iniciar, assim consegue saber que ele está conseguindo se comunicar com o HX711
-  if (balanca.is_ready())
-  {
-    for (int i = 0; i < num_leituras; i++)
+    // Reconecta caso o Wi-Fi caia
+    if (WiFi.status() != WL_CONNECTED)
     {
-      long leitura = balanca.read();
-
-      leituras[i] = leitura / fator_calibracao;
-
-      Serial.print("Leitura: ");
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(leituras[i], 2);
-      Serial.println(" kg");
-
-      delay(1000);
+        conectar_wifi();
     }
 
-    float menor = leituras[0];
-    float maior = leituras[0];
-
-    for (int i = 1; i < num_leituras; i++)
+    // Aguarda o intervalo entre leituras
+    if (millis() - ultima_leitura < intervalo_leitura)
     {
-      if (leituras[i] < menor)
-      {
-        menor = leituras[i];
-      }
-
-      if (leituras[i] > maior)
-      {
-        maior = leituras[i];
-      }
+        delay(20);
+        return;
     }
 
-    float variacao = maior - menor;
+    ultima_leitura = millis();
 
-    Serial.println("========================================");
-    Serial.print("Menor: ");
-    Serial.print(menor, 2);
+    // Nao envia leituras quando nao ha sessao ativa
+    if (!verificarSessaoAtiva())
+    {
+        Serial.println("Nenhuma sessao de pesagem ativa.");
+        return;
+    }
+
+    // Verifica se o sensor esta pronto
+    if (!balanca.is_ready())
+    {
+        Serial.println("HX711 nao esta pronto.");
+        return;
+    }
+
+    // Calcula a leitura media atual
+    float pesoAtual =
+        balanca.read_average(num_leituras) / fator_calibracao;
+
+    // Evita exibir pequenos valores residuais como peso real
+    if (pesoAtual < peso_minimo)
+    {
+        pesoAtual = 0.0;
+    }
+
+    Serial.print("Peso atual: ");
+    Serial.print(pesoAtual, 3);
     Serial.println(" kg");
 
-    Serial.print("Maior: ");
-    Serial.print(maior, 2);
-    Serial.println(" kg");
-
-    Serial.print("Variacao: ");
-    Serial.print(variacao, 2);
-    Serial.println(" kg");
-
-    if (variacao <= variacao_max)
-    {
-      float soma = 0;
-
-      for (int i = 0; i < num_leituras; i++)
-      {
-        soma += leituras[i];
-      }
-
-      peso_final = soma / num_leituras;
-
-      Serial.println("PESO ESTAVEL!");
-
-      Serial.print("Peso final da doacao: ");
-      Serial.print(peso_final, 2);
-      Serial.println(" kg");
-
-      // Se a balanca estiver vazia, libera a proxima doacao
-      if (peso_final <= peso_minimo)
-      {
-        doacao_enviada = false;
-        Serial.println("Balanca vazia ou sem peso suficiente.");
-      }
-      // Envia somente se ainda nao enviou esta doacao
-      else if (!doacao_enviada)
-      {
-        if (enviarDoacao(peso_final))
-        {
-          doacao_enviada = true;
-        }
-      }
-      else
-      {
-        Serial.println("Esta doacao ja foi enviada.");
-      }
-    }
-    else
-    {
-
-      Serial.println("PESO INSTAVEL!");
-    }
-
-    Serial.println("-------------------------------");
-  }
-  else
-  {
-
-    Serial.println("HX711 nao esta pronto!");
-  }
-
-  delay(1000);
+    // Envia somente a leitura temporaria.
+    // Esta rota nao cria registros na tabela de doacoes.
+    enviarLeitura(pesoAtual);
 }

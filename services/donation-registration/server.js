@@ -150,6 +150,172 @@ app.get("/pontos/:pontoId/ultima-doacao", async (req, res) => {
     }
 });
 
+
+/* =========================================
+   PESAGEM AO VIVO
+   ========================================= */
+
+// POST: inicia uma sessao de pesagem para um ponto
+app.post("/pontos/:pontoId/pesagem/iniciar", async (req, res) => {
+    try {
+        const pontoId = req.params.pontoId;
+
+        if (!pontoId || !pontoId.trim()) {
+            return res.status(400).json({
+                mensagem: "Informe um ponto de coleta valido."
+            });
+        }
+
+        const resultado = await sql`
+            INSERT INTO pesagem_ao_vivo
+                (ponto_id, ativa, peso, atualizado_em)
+            VALUES
+                (${pontoId}, TRUE, NULL, NULL)
+            ON CONFLICT (ponto_id)
+            DO UPDATE SET
+                ativa = TRUE,
+                peso = NULL,
+                atualizado_em = NULL
+            RETURNING ponto_id AS "pontoId", ativa
+        `;
+
+        return res.json({
+            mensagem: "Sessao de pesagem iniciada.",
+            ...resultado[0]
+        });
+    } catch (erro) {
+        console.error("Erro ao iniciar pesagem:", erro);
+
+        return res.status(500).json({
+            mensagem: "Nao foi possivel iniciar a pesagem."
+        });
+    }
+});
+
+
+// POST: recebe uma leitura temporaria do ESP32
+app.post("/pontos/:pontoId/pesagem/leitura", async (req, res) => {
+    try {
+        const pontoId = req.params.pontoId;
+        const peso = Number(req.body.peso);
+
+        if (!Number.isFinite(peso) || peso < 0) {
+            return res.status(400).json({
+                mensagem: "Informe um peso numerico valido."
+            });
+        }
+
+        const resultado = await sql`
+            UPDATE pesagem_ao_vivo
+            SET
+                peso = ${peso},
+                atualizado_em = NOW()
+            WHERE ponto_id = ${pontoId}
+              AND ativa = TRUE
+            RETURNING ponto_id AS "pontoId",
+                      peso,
+                      atualizado_em AS "atualizadoEm"
+        `;
+
+        if (resultado.length === 0) {
+            return res.status(409).json({
+                mensagem: "Nao existe uma sessao de pesagem ativa para este ponto."
+            });
+        }
+
+        return res.json({
+            mensagem: "Leitura recebida.",
+            ...resultado[0]
+        });
+    } catch (erro) {
+        console.error("Erro ao receber leitura:", erro);
+
+        return res.status(500).json({
+            mensagem: "Nao foi possivel receber a leitura."
+        });
+    }
+});
+
+
+// GET: consulta o estado atual da pesagem
+app.get("/pontos/:pontoId/pesagem/atual", async (req, res) => {
+    try {
+        const pontoId = req.params.pontoId;
+
+        const resultado = await sql`
+            SELECT
+                ponto_id AS "pontoId",
+                ativa,
+                peso,
+                atualizado_em AS "atualizadoEm"
+            FROM pesagem_ao_vivo
+            WHERE ponto_id = ${pontoId}
+            LIMIT 1
+        `;
+
+        if (resultado.length === 0 || !resultado[0].ativa) {
+            return res.status(404).json({
+                mensagem: "Nenhuma pesagem ativa para este ponto."
+            });
+        }
+
+        const leitura = resultado[0];
+
+        const leituraRecente =
+            leitura.atualizadoEm &&
+            Date.now() - new Date(leitura.atualizadoEm).getTime() < 5000;
+
+        if (!leituraRecente || leitura.peso === null) {
+            return res.json({
+                pontoId,
+                conectado: false,
+                peso: null
+            });
+        }
+
+        return res.json({
+            pontoId,
+            conectado: true,
+            peso: Number(leitura.peso),
+            atualizadoEm: leitura.atualizadoEm
+        });
+    } catch (erro) {
+        console.error("Erro ao consultar pesagem:", erro);
+
+        return res.status(500).json({
+            mensagem: "Nao foi possivel consultar a pesagem."
+        });
+    }
+});
+
+
+// POST: encerra a sessao de pesagem
+app.post("/pontos/:pontoId/pesagem/encerrar", async (req, res) => {
+    try {
+        const pontoId = req.params.pontoId;
+
+        await sql`
+            UPDATE pesagem_ao_vivo
+            SET ativa = FALSE
+            WHERE ponto_id = ${pontoId}
+        `;
+
+        return res.json({
+            mensagem: "Sessao de pesagem encerrada.",
+            pontoId
+        });
+    } catch (erro) {
+        console.error("Erro ao encerrar pesagem:", erro);
+
+        return res.status(500).json({
+            mensagem: "Nao foi possivel encerrar a pesagem."
+        });
+    }
+});
+
+// ================================================================
+
+
 app.listen(3000, () => {
     console.log("API rodando na porta 3000");
 });
