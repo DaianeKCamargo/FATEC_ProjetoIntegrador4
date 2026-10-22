@@ -17,20 +17,42 @@ type Doacao = {
 async function buscarUltimaDoacao(
   pontoId: string
 ): Promise<Doacao | null> {
-  const resposta = await fetch(
-    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/ultima-doacao`
-  );
+  const url =
+    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/ultima-doacao`;
 
-  // O ponto ainda pode não ter nenhuma doação registrada.
+  console.log('[API] URL:', url);
+
+  let resposta: Response;
+
+  try {
+    resposta = await fetch(url);
+  } catch (erro) {
+    console.error('[API] Falha de conexão:', erro);
+    throw new Error(
+      `Falha de conexão: ${
+        erro instanceof Error ? erro.message : String(erro)
+      }`
+    );
+  }
+
+  console.log('[API] Status HTTP:', resposta.status);
+
+  const texto = await resposta.text();
+  console.log('[API] Resposta:', texto);
+
   if (resposta.status === 404) {
     return null;
   }
 
   if (!resposta.ok) {
-    throw new Error(`Erro HTTP ${resposta.status}`);
+    throw new Error(`Erro HTTP ${resposta.status}: ${texto}`);
   }
 
-  return (await resposta.json()) as Doacao;
+  try {
+    return JSON.parse(texto) as Doacao;
+  } catch {
+    throw new Error('A API retornou uma resposta que não é JSON válido.');
+  }
 }
 
 export default function DoacaoScreen() {
