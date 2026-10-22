@@ -1,213 +1,265 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import {Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const API_URL = 'https://fatec-balanca.vercel.app';
 
-type Doacao = {
-  id: number | string;
-  peso: number | string;
-  quantidadeTampinhas: number | string;
-  pontoId?: string | null;
-  createdAt?: string;
+type Status = 'idle' | 'waiting' | 'ready' | 'finished';
+
+type LeituraAtual = {
+  pontoId: string;
+  conectado: boolean;
+  peso: number | null;
 };
 
-async function buscarUltimaDoacao(
-  pontoId: string
-): Promise<Doacao | null> {
-  const url =
-    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/ultima-doacao`;
-
-  console.log('[API] URL:', url);
-
-  let resposta: Response;
-
-  try {
-    resposta = await fetch(url);
-  } catch (erro) {
-    console.error('[API] Falha de conexão:', erro);
-    throw new Error(
-      `Falha de conexão: ${
-        erro instanceof Error ? erro.message : String(erro)
-      }`
-    );
-  }
-
-  console.log('[API] Status HTTP:', resposta.status);
+async function iniciarSessao(pontoId: string) {
+  const resposta = await fetch(
+    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/pesagem/iniciar`,
+    { method: 'POST' }
+  );
 
   const texto = await resposta.text();
-  console.log('[API] Resposta:', texto);
 
-  if (resposta.status === 404) {
-    return null;
+  if (!resposta.ok) {
+    throw new Error(`Não foi possível iniciar a pesagem: ${texto}`);
   }
+}
+
+async function buscarLeituraAtual(
+  pontoId: string
+): Promise<LeituraAtual> {
+  const resposta = await fetch(
+    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/pesagem/atual`
+  );
+
+  const texto = await resposta.text();
 
   if (!resposta.ok) {
     throw new Error(`Erro HTTP ${resposta.status}: ${texto}`);
   }
 
-  try {
-    return JSON.parse(texto) as Doacao;
-  } catch {
-    throw new Error('A API retornou uma resposta que não é JSON válido.');
+  return JSON.parse(texto) as LeituraAtual;
+}
+
+async function salvarDoacao(pontoId: string, peso: number) {
+  const resposta = await fetch(`${API_URL}/doacoes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      pontoId,
+      peso,
+    }),
+  });
+
+  const texto = await resposta.text();
+
+  if (!resposta.ok) {
+    throw new Error(`Não foi possível salvar a doação: ${texto}`);
+  }
+
+  return texto ? JSON.parse(texto) : {};
+}
+
+async function encerrarSessao(pontoId: string) {
+  const resposta = await fetch(
+    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/pesagem/encerrar`,
+    { method: 'POST' }
+  );
+
+  if (!resposta.ok) {
+    throw new Error(`Falha ao encerrar a pesagem: HTTP ${resposta.status}`);
   }
 }
 
 export default function DoacaoScreen() {
   const { pontoId: parametroPonto } =
-    useLocalSearchParams<{ pontoId?: string }>();
+    useLocalSearchParams<{ pontoId?: string | string[] }>();
 
   const pontoId = Array.isArray(parametroPonto)
     ? parametroPonto[0]
     : parametroPonto;
 
-  const [status, setStatus] = useState<
-    'idle' | 'waiting' | 'finished'
-  >('idle');
-
+  const [status, setStatus] = useState<Status>('idle');
   const [peso, setPeso] = useState<number | null>(null);
   const [quantidade, setQuantidade] = useState<number | null>(null);
-  const [baselineLoaded, setBaselineLoaded] = useState(false);
+  const [temLeitura, setTemLeitura] = useState(false);
   const [erro, setErro] = useState('');
 
-  // Guarda o ID da última doação existente antes de iniciar a espera.
-  const ultimoIdRef = useRef<string | null>(null);
   const pollingRef = useRef(false);
+  const confirmandoRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sessaoIniciadaRef = useRef(false);
 
-  // Ao abrir a tela, registra qual era a última doação do ponto.
+  function pararConsulta() {
+    pollingRef.current = false;
+
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+
   useEffect(() => {
-    let ativo = true;
-
-    async function carregarReferencia() {
-      if (!pontoId) {
-        setErro('Ponto de coleta não identificado. Volte ao leitor de QR Code.');
-        return;
-      }
-
-      try {
-        const doacao = await buscarUltimaDoacao(pontoId);
-
-        if (!ativo) return;
-
-        ultimoIdRef.current = doacao ? String(doacao.id) : null;
-        setBaselineLoaded(true);
-        setErro('');
-      } catch {
-        if (!ativo) return;
-
-        setErro(
-          'Não foi possível conectar à API. Verifique sua conexão e tente novamente.'
-        );
-      }
-    }
-
-    carregarReferencia();
-
     return () => {
-      ativo = false;
-      pollingRef.current = false;
-
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      pararConsulta();
     };
-  }, [pontoId]);
+  }, []);
 
-  async function iniciarPesagem() {
-    if (!pontoId || status === 'waiting') return;
+  async function consultarPeso() {
+    if (!pollingRef.current || !pontoId) return;
 
-    setErro('');
+    try {
+      const leitura = await buscarLeituraAtual(pontoId);
 
-    // Se a consulta inicial falhou, tenta novamente antes de esperar.
-    if (!baselineLoaded) {
-      try {
-        const doacao = await buscarUltimaDoacao(pontoId);
-
-        ultimoIdRef.current = doacao ? String(doacao.id) : null;
-        setBaselineLoaded(true);
-      } catch {
-        setErro(
-          'Não foi possível consultar a API. Verifique a conexão e tente novamente.'
-        );
-        return;
-      }
-    }
-
-    setPeso(null);
-    setQuantidade(null);
-    setStatus('waiting');
-    pollingRef.current = true;
-
-    async function consultarNovaDoacao() {
       if (!pollingRef.current) return;
 
-      try {
-        const doacao = await buscarUltimaDoacao(pontoId);
+      if (
+        leitura.conectado &&
+        leitura.peso !== null &&
+        Number.isFinite(Number(leitura.peso)) &&
+        Number(leitura.peso) >= 0
+      ) {
+        const pesoAtual = Number(leitura.peso);
+        const quantidadeAtual = Math.round((pesoAtual * 1000) / 2);
 
-        if (!pollingRef.current) return;
-
-        // Só aceita um registro diferente do que existia antes.
-        if (
-          doacao &&
-          String(doacao.id) !== ultimoIdRef.current
-        ) {
-          const pesoRecebido = Number(doacao.peso);
-          const quantidadeRecebida = Number(
-            doacao.quantidadeTampinhas
-          );
-
-          if (
-            !Number.isFinite(pesoRecebido) ||
-            pesoRecebido <= 0 ||
-            !Number.isFinite(quantidadeRecebida)
-          ) {
-            throw new Error('Dados da doação inválidos.');
-          }
-
-          ultimoIdRef.current = String(doacao.id);
-          setPeso(pesoRecebido);
-          setQuantidade(quantidadeRecebida);
-          setErro('');
-          setStatus('finished');
-          pollingRef.current = false;
-          return;
-        }
-
+        setPeso(pesoAtual);
+        setQuantidade(quantidadeAtual);
+        setTemLeitura(true);
+        setStatus(pesoAtual > 0 ? 'ready' : 'waiting');
         setErro('');
-      } catch {
-        if (pollingRef.current) {
-          setErro(
-            'Falha temporária ao consultar a API. Tentando novamente...'
-          );
-        }
+      } else {
+        setTemLeitura(false);
+        setPeso(null);
+        setQuantidade(null);
+        setStatus('waiting');
+        setErro('Aguardando uma leitura recente da balança...');
+      }
+    } catch (erroConsulta) {
+      if (!pollingRef.current) return;
+
+      console.error('[PESAGEM] Erro ao consultar:', erroConsulta);
+      setErro('Aguardando conexão com a balança...');
+    }
+
+    if (pollingRef.current) {
+      timerRef.current = setTimeout(consultarPeso, 1000);
+    }
+  }
+
+  async function iniciarPesagem() {
+    if (!pontoId || status !== 'idle') return;
+
+    try {
+      setErro('');
+      setPeso(null);
+      setQuantidade(null);
+      setTemLeitura(false);
+
+      console.log('[PESAGEM] Iniciando sessão para:', pontoId);
+
+      await iniciarSessao(pontoId);
+
+      sessaoIniciadaRef.current = true;
+      pollingRef.current = true;
+      setStatus('waiting');
+
+      consultarPeso();
+    } catch (erroInicio) {
+      console.error('[PESAGEM] Erro ao iniciar:', erroInicio);
+      setErro(
+        erroInicio instanceof Error
+          ? erroInicio.message
+          : 'Não foi possível iniciar a pesagem.'
+      );
+    }
+  }
+
+  async function confirmarDoacao() {
+    if (
+      !pontoId ||
+      peso === null ||
+      peso <= 0 ||
+      status !== 'ready' ||
+      confirmandoRef.current
+    ) {
+      return;
+    }
+
+    confirmandoRef.current = true;
+    setErro('');
+
+    try {
+      // Salva somente quando a pessoa confirma.
+      const pesoConfirmado = peso;
+
+      await salvarDoacao(pontoId, pesoConfirmado);
+
+      pararConsulta();
+
+      try {
+        await encerrarSessao(pontoId);
+        sessaoIniciadaRef.current = false;
+      } catch (erroEncerramento) {
+        console.error(
+          '[PESAGEM] A doação foi salva, mas houve erro ao encerrar a sessão:',
+          erroEncerramento
+        );
       }
 
-      if (pollingRef.current) {
-        timerRef.current = setTimeout(
-          consultarNovaDoacao,
-          2000
-        );
+      const quantidadeConfirmada = Math.round(
+        (pesoConfirmado * 1000) / 2
+      );
+
+      setPeso(pesoConfirmado);
+      setQuantidade(quantidadeConfirmada);
+      setStatus('finished');
+
+      router.replace({
+        pathname: '/sucesso-doacao',
+        params: {
+          pontoId,
+          peso: String(pesoConfirmado),
+          quantidadeTampinhas: String(quantidadeConfirmada),
+        },
+      });
+    } catch (erroSalvar) {
+      console.error('[DOACAO] Erro ao salvar:', erroSalvar);
+      setErro(
+        erroSalvar instanceof Error
+          ? erroSalvar.message
+          : 'Não foi possível salvar a doação. Tente novamente.'
+      );
+    } finally {
+      confirmandoRef.current = false;
+    }
+  }
+
+  async function voltarAoLeitor() {
+    pararConsulta();
+
+    if (sessaoIniciadaRef.current && pontoId) {
+      try {
+        await encerrarSessao(pontoId);
+        sessaoIniciadaRef.current = false;
+      } catch (erroEncerramento) {
+        console.error('[PESAGEM] Erro ao encerrar sessão:', erroEncerramento);
       }
     }
 
-    consultarNovaDoacao();
+    router.back();
   }
 
-  function confirmarDoacao() {
-    if (peso === null || quantidade === null) return;
-
-    router.replace({
-      pathname: '/sucesso-doacao',
-      params: {
-        pontoId: pontoId ?? 'Não identificado',
-        peso: String(peso),
-        quantidadeTampinhas: String(quantidade),
-      },
-    });
-  }
+  const mostrarBotaoIniciar = status === 'idle';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -231,26 +283,22 @@ export default function DoacaoScreen() {
             <Text style={styles.pointId}>
               {pontoId ?? 'Não identificado'}
             </Text>
-            <Text style={styles.activeText}>
-              Ponto selecionado
-            </Text>
+            <Text style={styles.activeText}>Ponto selecionado</Text>
           </View>
         </View>
 
         <View style={styles.weightCard}>
-          <Text style={styles.weightLabel}>
-            PESO DA DOAÇÃO
-          </Text>
+          <Text style={styles.weightLabel}>PESO DA DOAÇÃO</Text>
 
           <Text style={styles.weightValue}>
-            {status === 'finished' && peso !== null
-              ? peso.toFixed(2).replace('.', ',')
+            {temLeitura && peso !== null
+              ? peso.toFixed(3).replace('.', ',')
               : '— —'}
           </Text>
 
           <Text style={styles.unit}>kg</Text>
 
-          {status === 'finished' && quantidade !== null && (
+          {temLeitura && quantidade !== null && (
             <Text style={styles.quantityText}>
               Aproximadamente {quantidade} tampinhas
             </Text>
@@ -260,21 +308,21 @@ export default function DoacaoScreen() {
             <View
               style={[
                 styles.statusDot,
-                status === 'waiting' && styles.waitingDot,
-                status === 'finished' && styles.finishedDot,
+                status !== 'idle' && styles.waitingDot,
+                status === 'ready' && styles.finishedDot,
               ]}
             />
 
             <Text style={styles.statusText}>
               {!pontoId
                 ? 'Ponto não identificado'
-                : status === 'waiting'
-                  ? 'Aguardando doação da balança...'
-                  : status === 'finished'
-                    ? 'Doação recebida com sucesso'
-                    : baselineLoaded
-                      ? 'Conectado à API'
-                      : 'Conectando à API...'}
+                : status === 'idle'
+                  ? 'Pronto para iniciar'
+                  : status === 'waiting'
+                    ? 'Aguardando leitura da balança...'
+                    : status === 'ready'
+                      ? 'Pesagem ao vivo'
+                      : 'Doação confirmada'}
             </Text>
           </View>
         </View>
@@ -289,41 +337,43 @@ export default function DoacaoScreen() {
           <Text style={styles.infoTitle}>Como funciona?</Text>
 
           <Text style={styles.infoText}>
-            1. Coloque as tampinhas na balança.
+            1. Toque em Iniciar pesagem.
           </Text>
           <Text style={styles.infoText}>
-            2. Inicie a espera pelo aplicativo.
+            2. Coloque as tampinhas na balança.
           </Text>
           <Text style={styles.infoText}>
-            3. Aguarde o registro da balança na API.
+            3. Acompanhe o peso e a quantidade estimada em tempo real.
           </Text>
           <Text style={styles.infoText}>
-            4. Confira o peso e a quantidade estimada.
+            4. Confira os valores e toque em Confirmar doação para salvar.
           </Text>
         </View>
 
-        {status !== 'finished' && (
+        {mostrarBotaoIniciar && (
           <Pressable
             style={[
               styles.button,
-              status === 'waiting' && styles.buttonDisabled,
               !pontoId && styles.buttonDisabled,
             ]}
             onPress={iniciarPesagem}
-            disabled={status === 'waiting' || !pontoId}
+            disabled={!pontoId}
           >
-            <Text style={styles.buttonText}>
-              {status === 'waiting'
-                ? 'Aguardando doação...'
-                : 'Iniciar pesagem'}
-            </Text>
+            <Text style={styles.buttonText}>Iniciar pesagem</Text>
           </Pressable>
         )}
 
-        {status === 'finished' && (
+        {status === 'waiting' && (
+          <View style={[styles.button, styles.buttonDisabled]}>
+            <Text style={styles.buttonText}>Pesagem em andamento...</Text>
+          </View>
+        )}
+
+        {status === 'ready' && (
           <Pressable
             style={styles.confirmButton}
             onPress={confirmarDoacao}
+            disabled={confirmandoRef.current}
           >
             <Text style={styles.buttonText}>
               Confirmar doação
@@ -332,26 +382,16 @@ export default function DoacaoScreen() {
         )}
 
         <Text style={styles.disclaimer}>
-          O peso e a quantidade são obtidos da API após o
-          registro da balança. A quantidade de tampinhas é uma
-          estimativa baseada em 2 g por unidade.
+          O peso é atualizado pela balança. A quantidade de tampinhas é
+          uma estimativa baseada em 2 g por unidade. A doação só é salva
+          após a confirmação.
         </Text>
 
         <Pressable
           style={styles.backButton}
-          onPress={() => {
-            pollingRef.current = false;
-
-            if (timerRef.current) {
-              clearTimeout(timerRef.current);
-            }
-
-            router.back();
-          }}
+          onPress={voltarAoLeitor}
         >
-          <Text style={styles.backButtonText}>
-            Voltar ao leitor
-          </Text>
+          <Text style={styles.backButtonText}>Voltar ao leitor</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
