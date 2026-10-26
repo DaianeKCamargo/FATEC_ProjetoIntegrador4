@@ -90,8 +90,8 @@ export default function DoacaoScreen() {
     : parametroPonto;
 
   const [status, setStatus] = useState<Status>('idle');
-  const [peso, setPeso] = useState<number | null>(null);
-  const [quantidade, setQuantidade] = useState<number | null>(null);
+  const [peso, setPeso] = useState<number>(0);
+  const [quantidade, setQuantidade] = useState<number>(0);
   const [temLeitura, setTemLeitura] = useState(false);
   const [erro, setErro] = useState('');
 
@@ -139,16 +139,16 @@ export default function DoacaoScreen() {
         setErro('');
       } else {
         setTemLeitura(false);
-        setPeso(null);
-        setQuantidade(null);
+        setPeso(0);
+        setQuantidade(0);
         setStatus('waiting');
-        setErro('Aguardando uma leitura recente da balança...');
+        setErro('');
       }
     } catch (erroConsulta) {
       if (!pollingRef.current) return;
 
       console.error('[PESAGEM] Erro ao consultar:', erroConsulta);
-      setErro('Aguardando conexão com a balança...');
+      setErro('Não foi possível consultar a API. Tentando novamente...');;
     }
 
     if (pollingRef.current) {
@@ -291,9 +291,7 @@ export default function DoacaoScreen() {
           <Text style={styles.weightLabel}>PESO DA DOAÇÃO</Text>
 
           <Text style={styles.weightValue}>
-            {temLeitura && peso !== null
-              ? peso.toFixed(3).replace('.', ',')
-              : '— —'}
+            {peso.toFixed(3).replace('.', ',')}
           </Text>
 
           <Text style={styles.unit}>kg</Text>
