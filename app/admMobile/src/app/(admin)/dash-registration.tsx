@@ -20,6 +20,8 @@ type Cap = {
   data: string;
   quantidadeKg: number | string;
   quantidade_tampinhas?: number;
+  unidade?: string;
+  local?: string;
 };
 
 type Animal = {
@@ -236,6 +238,8 @@ export default function DashRegistration() {
   const [capCreateForm, setCapCreateForm] = useState({
     data: todayString(),
     quantidadeKg: '',
+    unidade: '',
+    local: '',
   });
 
   const [animalCreateForm, setAnimalCreateForm] = useState({
@@ -250,6 +254,8 @@ export default function DashRegistration() {
   const [capForm, setCapForm] = useState({
     data: '',
     quantidadeKg: '',
+    unidade: '',
+    local: '',
   });
 
   const [animalForm, setAnimalForm] = useState({
@@ -381,9 +387,16 @@ export default function DashRegistration() {
       await capsService.create({
         data: capCreateForm.data,
         quantidadeKg: Number(capCreateForm.quantidadeKg),
+        unidade: capCreateForm.unidade.trim(),
+        local: capCreateForm.local.trim(),
       });
 
-      setCapCreateForm({ data: todayString(), quantidadeKg: '' });
+      setCapCreateForm({
+        data: todayString(),
+        quantidadeKg: '',
+        unidade: '',
+        local: '',
+      });
       await loadData();
 
       Alert.alert('Sucesso', 'Registro de tampinhas cadastrado.');
@@ -441,6 +454,8 @@ export default function DashRegistration() {
     setCapForm({
       data: item.data.slice(0, 10),
       quantidadeKg: String(item.quantidadeKg ?? ''),
+      unidade: item.unidade ?? '',
+      local: item.local ?? '',
     });
   }
 
@@ -462,6 +477,8 @@ export default function DashRegistration() {
       await capsService.update(String(editingCapId), {
         data: capForm.data,
         quantidadeKg: Number(capForm.quantidadeKg),
+        unidade: capForm.unidade.trim(),
+        local: capForm.local.trim(),
       });
 
       setEditingCapId(null);
@@ -665,6 +682,15 @@ export default function DashRegistration() {
               keyboardType="decimal-pad"
             />
 
+            <Field
+              label="Local"
+              value={capCreateForm.local}
+              onChangeText={(local) =>
+                setCapCreateForm((old) => ({ ...old, local }))
+              }
+              placeholder="Ponto de coleta / local da doação"
+            />
+
             <ActionButton
               title={saving ? 'Salvando...' : 'Salvar tampinhas'}
               onPress={createCap}
@@ -723,6 +749,15 @@ export default function DashRegistration() {
                       keyboardType="decimal-pad"
                     />
 
+                    <Field
+                      label="Local"
+                      value={capForm.local}
+                      onChangeText={(local) =>
+                        setCapForm((old) => ({ ...old, local }))
+                      }
+                      placeholder="Ponto de coleta / local da doação"
+                    />
+
                     <Text className="mb-3 rounded-xl bg-[#FFFDF6] p-3 text-[#6A5F43]">
                       Estimativa: {Math.round(Number(capForm.quantidadeKg || 0) * 500).toLocaleString('pt-BR')} tampinhas
                     </Text>
@@ -748,6 +783,14 @@ export default function DashRegistration() {
 
                     <Text className="mb-1 text-base text-[#2F2818]">
                       Peso: {Number(item.quantidadeKg || 0).toLocaleString('pt-BR')} kg
+                    </Text>
+
+                    <Text className="mb-1 text-base text-[#2F2818]">
+                      Unidade: {item.unidade || 'Não informada'}
+                    </Text>
+
+                    <Text className="mb-1 text-base text-[#2F2818]">
+                      Local: {item.local || 'Não informado'}
                     </Text>
 
                     <Text className="mb-4 text-base text-[#6A5F43]">
