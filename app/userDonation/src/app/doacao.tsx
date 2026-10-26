@@ -161,8 +161,8 @@ export default function DoacaoScreen() {
 
     try {
       setErro('');
-      setPeso(null);
-      setQuantidade(null);
+      setPeso(0);
+      setQuantidade(0);
       setTemLeitura(false);
 
       console.log('[PESAGEM] Iniciando sessão para:', pontoId);
