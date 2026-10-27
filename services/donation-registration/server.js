@@ -192,7 +192,6 @@ app.post("/pontos/:pontoId/pesagem/iniciar", async (req, res) => {
     }
 });
 
-
 // POST: recebe uma leitura temporaria do ESP32
 app.post("/pontos/:pontoId/pesagem/leitura", async (req, res) => {
     try {
@@ -235,7 +234,6 @@ app.post("/pontos/:pontoId/pesagem/leitura", async (req, res) => {
         });
     }
 });
-
 
 // GET: consulta o estado atual da pesagem
 app.get("/pontos/:pontoId/pesagem/atual", async (req, res) => {
@@ -287,7 +285,6 @@ app.get("/pontos/:pontoId/pesagem/atual", async (req, res) => {
         });
     }
 });
-
 
 // POST: encerra a sessao de pesagem
 app.post("/pontos/:pontoId/pesagem/encerrar", async (req, res) => {
