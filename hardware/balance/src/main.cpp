@@ -183,7 +183,6 @@ void loop()
     // Aguarda o intervalo entre leituras
     if (millis() - ultima_leitura < intervalo_leitura)
     {
-        delay(20);
         return;
     }
 
