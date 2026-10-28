@@ -17,11 +17,18 @@ app.get("/", (req, res) => {
     });
 });
 
-// Recebe uma leitura de peso via HTTP e transmite aos clientes WebSocket
+// Recebe uma leitura de peso via HTTP e transmite
+// somente aos clientes inscritos no ponto correspondente
 app.post("/peso", (req, res) => {
     const { pontoId, peso } = req.body;
 
-    if (!pontoId || typeof peso !== "number" || peso < 0) {
+    if (
+        typeof pontoId !== "string" ||
+        !pontoId.trim() ||
+        typeof peso !== "number" ||
+        !Number.isFinite(peso) ||
+        peso < 0
+    ) {
         return res.status(400).json({
             erro: "Informe um pontoId e um peso válido.",
         });
@@ -37,7 +44,10 @@ app.post("/peso", (req, res) => {
     let clientesNotificados = 0;
 
     wss.clients.forEach((cliente) => {
-        if (cliente.readyState === WebSocket.OPEN) {
+        if (
+            cliente.readyState === WebSocket.OPEN &&
+            cliente.pontoId === pontoId
+        ) {
             cliente.send(JSON.stringify(leitura));
             clientesNotificados++;
         }
@@ -51,11 +61,21 @@ app.post("/peso", (req, res) => {
 });
 
 // Registra novas conexões WebSocket
-wss.on("connection", (ws) => {
-    console.log("Cliente conectado ao WebSocket.");
+wss.on("connection", (ws, req) => {
+    const url = new URL(req.url, "http://localhost");
+    const pontoId = url.searchParams.get("pontoId");
+
+    if (!pontoId || !pontoId.trim()) {
+        ws.close(1008, "Informe o pontoId.");
+        return;
+    }
+
+    ws.pontoId = pontoId;
+
+    console.log(`Cliente conectado ao ponto ${pontoId}.`);
 
     ws.on("close", () => {
-        console.log("Cliente desconectado do WebSocket.");
+        console.log(`Cliente desconectado do ponto ${pontoId}.`);
     });
 });
 
