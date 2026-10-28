@@ -10,14 +10,15 @@
 #define SCK 5
 
 // Configuracao Wi-Fi
-const char* SSID = "Wokwi-GUEST";
-const char* SENHA = "";
+const char *SSID = "Wokwi-GUEST";
+const char *SENHA = "";
 
 // Deve ser igual ao identificador do QR Code
-const char* PONTO_ID = "PONTO-001";
+const char *PONTO_ID = "PONTO-001";
 
 // Endereco da API
-const char* API_BASE_URL = "https://fatec-balanca.vercel.app";
+const char *WEBSOCKET_API_URL =
+    "https://weight-websocket.onrender.com";
 
 // Configuracao da balanca
 HX711 balanca;
@@ -29,7 +30,6 @@ const float peso_minimo = 0.05;
 // Intervalo entre verificacoes da sessao
 const unsigned long intervalo_leitura = 1000;
 unsigned long ultima_leitura = 0;
-
 
 // Conecta ao Wi-Fi
 void conectar_wifi()
@@ -50,7 +50,6 @@ void conectar_wifi()
     Serial.println(WiFi.localIP());
 }
 
-
 // Verifica se existe uma sessao de pesagem ativa
 bool verificarSessaoAtiva()
 {
@@ -64,7 +63,7 @@ bool verificarSessaoAtiva()
 
     HTTPClient https;
 
-    String url = String(API_BASE_URL) +
+    String url = String(WEBSOCKET_API_URL) +
                  "/pontos/" + PONTO_ID +
                  "/pesagem/atual";
 
@@ -93,7 +92,6 @@ bool verificarSessaoAtiva()
     return ativa;
 }
 
-
 // Envia uma leitura temporaria para a API
 bool enviarLeitura(float peso)
 {
@@ -108,9 +106,7 @@ bool enviarLeitura(float peso)
 
     HTTPClient https;
 
-    String url = String(API_BASE_URL) +
-                 "/pontos/" + PONTO_ID +
-                 "/pesagem/leitura";
+    String url = String(WEBSOCKET_API_URL) + "/peso";
 
     if (!https.begin(cliente, url))
     {
@@ -118,41 +114,44 @@ bool enviarLeitura(float peso)
         return false;
     }
 
-    https.setTimeout(3000);
+    https.setTimeout(5000);
     https.addHeader("Content-Type", "application/json");
 
-    String corpoJSON = "{\"peso\":";
+    String corpoJSON = "{\"pontoId\":\"";
+    corpoJSON += PONTO_ID;
+    corpoJSON += "\",\"peso\":";
     corpoJSON += String(peso, 3);
     corpoJSON += "}";
 
     int codigoHTTP = https.POST(corpoJSON);
 
-    if (codigoHTTP > 0)
+    bool sucesso = codigoHTTP >= 200 && codigoHTTP < 300;
+
+    if (sucesso)
     {
-        if (codigoHTTP >= 200 && codigoHTTP < 300)
-        {
-            Serial.print("Leitura enviada: ");
-            Serial.print(peso, 3);
-            Serial.println(" kg");
-        }
-        else
-        {
-            Serial.print("Erro HTTP ao enviar leitura: ");
-            Serial.println(codigoHTTP);
-            Serial.println(https.getString());
-        }
+        Serial.print("Leitura enviada ao WebSocket: ");
+        Serial.print(peso, 3);
+        Serial.println(" kg");
     }
     else
     {
-        Serial.print("Falha no envio: ");
-        Serial.println(https.errorToString(codigoHTTP));
+        Serial.print("Erro HTTP ao enviar leitura: ");
+        Serial.println(codigoHTTP);
+
+        if (codigoHTTP > 0)
+        {
+            Serial.println(https.getString());
+        }
+        else
+        {
+            Serial.println(https.errorToString(codigoHTTP));
+        }
     }
 
     https.end();
 
-    return codigoHTTP >= 200 && codigoHTTP < 300;
+    return sucesso;
 }
-
 
 // Inicializacao
 void setup()
@@ -169,7 +168,6 @@ void setup()
 
     Serial.println("HX711 configurado!");
 }
-
 
 // Execucao continua
 void loop()
