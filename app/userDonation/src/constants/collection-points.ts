@@ -10,13 +10,13 @@ export const collectionPoints: CollectionPoint[] = [
   {
     id: 'PONTO-001',
     name: 'Ponto de Coleta Central',
-    address: 'Praça Central — endereço de exemplo',
+    address: 'Praça Central',
     status: 'active',
   },
   {
     id: 'PONTO-002',
     name: 'Ponto de Coleta do Parque',
-    address: 'Parque Municipal — endereço de exemplo',
+    address: 'Parque Municipal',
     status: 'active',
   },
 ];

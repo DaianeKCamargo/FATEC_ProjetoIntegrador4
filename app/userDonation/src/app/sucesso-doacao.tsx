@@ -110,22 +110,21 @@ export default function SucessoDoacaoScreen() {
           </View>
         </View>
 
-        {/* Aviso transparente */}
-        <View className="mt-4 flex-row items-start gap-2 rounded-[14px] bg-[#F0F2EF] p-3.5 dark:bg-[#222D25]">
-          <Text className="text-[16px]">ℹ️</Text>
-
-          <Text className="min-w-0 flex-1 text-[12px] leading-[18px] text-[#414B43] dark:text-[#C0CEC3]">
-            Esta é uma confirmação demonstrativa. A doação ainda não foi
-            salva no banco de dados.
-          </Text>
-        </View>
-
         {/* Ação principal */}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Voltar ao início"
           className="mt-6 min-h-[56px] flex-row items-center justify-center gap-2 rounded-[16px] border border-[#176638] bg-[#176638] px-5 py-4 active:bg-[#124F2B] dark:border-[#438B55] dark:bg-[#286B3D] dark:active:bg-[#205630]"
-          onPress={() => router.replace('/(tabs)')}
+          onPress={() => {
+            if (pontoId) {
+              router.replace({
+                pathname: '/ponto/[id]',
+                params: { id: pontoId },
+              });
+            } else {
+              router.replace('/(tabs)');
+            }
+          }}
         >
           <Text className="text-[16px] font-extrabold text-white">
             Voltar ao início
