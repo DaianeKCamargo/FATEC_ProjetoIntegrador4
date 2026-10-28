@@ -1,0 +1,17 @@
+{
+  "name": "weight-websocket",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "ws": "^8.22.0"
+  }
+}
