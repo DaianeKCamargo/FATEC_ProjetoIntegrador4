@@ -82,6 +82,7 @@ async function encerrarSessao(pontoId: string) {
 }
 
 export default function DoacaoScreen() {
+  const socketRef = useRef<WebSocket | null>(null);
   const { pontoId: parametroPonto } =
     useLocalSearchParams<{ pontoId?: string | string[] }>();
 
@@ -103,10 +104,15 @@ export default function DoacaoScreen() {
   function pararConsulta() {
     pollingRef.current = false;
 
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+  if (timerRef.current) {
+    clearTimeout(timerRef.current);
+    timerRef.current = null;
+  }
+
+  if (socketRef.current) {
+    socketRef.current.close();
+    socketRef.current = null;
+  }
   }
 
   useEffect(() => {
@@ -115,46 +121,83 @@ export default function DoacaoScreen() {
     };
   }, []);
 
-  async function consultarPeso() {
-    if (!pollingRef.current || !pontoId) return;
+  function conectarWebSocket(pontoId: string) {
+  pararConsulta();
+
+  pollingRef.current = true;
+
+  const url =
+    `wss://weight-websocket.onrender.com/` +
+    `?pontoId=${encodeURIComponent(pontoId)}`;
+
+  const socket = new WebSocket(url);
+
+  socketRef.current = socket;
+
+  socket.onopen = () => {
+    if (!pollingRef.current) return;
+
+    console.log('[WEBSOCKET] Conectado ao ponto:', pontoId);
+    setErro('');
+    setStatus('waiting');
+  };
+
+  socket.onmessage = (evento) => {
+    if (!pollingRef.current) return;
 
     try {
-      const leitura = await buscarLeituraAtual(pontoId);
-
-      if (!pollingRef.current) return;
+      const leitura = JSON.parse(evento.data);
 
       if (
-        leitura.conectado &&
-        leitura.peso !== null &&
-        Number.isFinite(Number(leitura.peso)) &&
-        Number(leitura.peso) >= 0
+        leitura.tipo !== 'leitura_peso' ||
+        leitura.pontoId !== pontoId ||
+        typeof leitura.peso !== 'number' ||
+        !Number.isFinite(leitura.peso) ||
+        leitura.peso < 0
       ) {
-        const pesoAtual = Number(leitura.peso);
-        const quantidadeAtual = Math.round((pesoAtual * 1000) / 2);
-
-        setPeso(pesoAtual);
-        setQuantidade(quantidadeAtual);
-        setTemLeitura(true);
-        setStatus(pesoAtual > 0 ? 'ready' : 'waiting');
-        setErro('');
-      } else {
-        setTemLeitura(false);
-        setPeso(0);
-        setQuantidade(0);
-        setStatus('waiting');
-        setErro('');
+        console.warn('[WEBSOCKET] Mensagem inválida:', leitura);
+        return;
       }
-    } catch (erroConsulta) {
-      if (!pollingRef.current) return;
 
-      console.error('[PESAGEM] Erro ao consultar:', erroConsulta);
-      setErro('Não foi possível consultar a API. Tentando novamente...');;
+      const pesoAtual = leitura.peso;
+      const quantidadeAtual = Math.round(
+        (pesoAtual * 1000) / 2
+      );
+
+      setPeso(pesoAtual);
+      setQuantidade(quantidadeAtual);
+      setTemLeitura(true);
+      setStatus(pesoAtual > 0 ? 'ready' : 'waiting');
+      setErro('');
+
+      console.log('[WEBSOCKET] Peso recebido:', pesoAtual);
+    } catch (erroMensagem) {
+      console.error(
+        '[WEBSOCKET] Erro ao processar mensagem:',
+        erroMensagem
+      );
+    }
+  };
+
+  socket.onerror = (evento) => {
+    console.error('[WEBSOCKET] Erro de conexão:', evento);
+    setErro('Erro na conexão com a balança em tempo real.');
+  };
+
+  socket.onclose = () => {
+    console.log('[WEBSOCKET] Conexão encerrada.');
+
+    if (socketRef.current === socket) {
+      socketRef.current = null;
     }
 
     if (pollingRef.current) {
-      timerRef.current = setTimeout(consultarPeso, 1000);
+      setErro(
+        'Conexão com a balança encerrada. Tente iniciar a pesagem novamente.'
+      );
     }
-  }
+  };
+}
 
   async function iniciarPesagem() {
     if (!pontoId || status !== 'idle') return;
@@ -170,10 +213,10 @@ export default function DoacaoScreen() {
       await iniciarSessao(pontoId);
 
       sessaoIniciadaRef.current = true;
-      pollingRef.current = true;
       setStatus('waiting');
 
-      consultarPeso();
+      conectarWebSocket(pontoId);
+
     } catch (erroInicio) {
       console.error('[PESAGEM] Erro ao iniciar:', erroInicio);
       setErro(
