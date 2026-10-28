@@ -13,10 +13,10 @@
 const char *SSID = "Wokwi-GUEST";
 const char *SENHA = "";
 
-// Deve ser igual ao identificador do QR Code
+// Identificador do ponto de coleta
 const char *PONTO_ID = "PONTO-001";
 
-// Endereco da API
+// Endereco do servidor WebSocket (recebe o peso via HTTP)
 const char *WEBSOCKET_API_URL =
     "https://weight-websocket.onrender.com";
 
@@ -27,7 +27,7 @@ const float fator_calibracao = 419.5;
 const int num_leituras = 5;
 const float peso_minimo = 0.05;
 
-// Intervalo entre verificacoes da sessao
+// Intervalo entre leituras
 const unsigned long intervalo_leitura = 1000;
 unsigned long ultima_leitura = 0;
 
@@ -50,49 +50,7 @@ void conectar_wifi()
     Serial.println(WiFi.localIP());
 }
 
-// Verifica se existe uma sessao de pesagem ativa
-bool verificarSessaoAtiva()
-{
-    if (WiFi.status() != WL_CONNECTED)
-    {
-        return false;
-    }
-
-    WiFiClientSecure cliente;
-    cliente.setInsecure(); // Somente para testes no Wokwi
-
-    HTTPClient https;
-
-    String url = String(WEBSOCKET_API_URL) +
-                 "/pontos/" + PONTO_ID +
-                 "/pesagem/atual";
-
-    if (!https.begin(cliente, url))
-    {
-        Serial.println("Erro ao consultar a sessao.");
-        return false;
-    }
-
-    https.setTimeout(3000);
-
-    int codigoHTTP = https.GET();
-
-    // A API retorna 200 quando existe uma sessao ativa.
-    // Retorna 404 quando nao existe sessao ativa.
-    bool ativa = (codigoHTTP == 200);
-
-    if (codigoHTTP < 0)
-    {
-        Serial.print("Falha na consulta: ");
-        Serial.println(https.errorToString(codigoHTTP));
-    }
-
-    https.end();
-
-    return ativa;
-}
-
-// Envia uma leitura temporaria para a API
+// Envia o peso para o servidor Render
 bool enviarLeitura(float peso)
 {
     if (WiFi.status() != WL_CONNECTED)
@@ -129,7 +87,7 @@ bool enviarLeitura(float peso)
 
     if (sucesso)
     {
-        Serial.print("Leitura enviada ao WebSocket: ");
+        Serial.print("Leitura enviada ao Render: ");
         Serial.print(peso, 3);
         Serial.println(" kg");
     }
@@ -172,13 +130,11 @@ void setup()
 // Execucao continua
 void loop()
 {
-    // Reconecta caso o Wi-Fi caia
     if (WiFi.status() != WL_CONNECTED)
     {
         conectar_wifi();
     }
 
-    // Aguarda o intervalo entre leituras
     if (millis() - ultima_leitura < intervalo_leitura)
     {
         return;
@@ -186,25 +142,15 @@ void loop()
 
     ultima_leitura = millis();
 
-    // Nao envia leituras quando nao ha sessao ativa
-    if (!verificarSessaoAtiva())
-    {
-        Serial.println("Nenhuma sessao de pesagem ativa.");
-        return;
-    }
-
-    // Verifica se o sensor esta pronto
     if (!balanca.is_ready())
     {
         Serial.println("HX711 nao esta pronto.");
         return;
     }
 
-    // Calcula a leitura media atual
     float pesoAtual =
         balanca.read_average(num_leituras) / fator_calibracao;
 
-    // Evita exibir pequenos valores residuais como peso real
     if (pesoAtual < peso_minimo)
     {
         pesoAtual = 0.0;
@@ -214,7 +160,5 @@ void loop()
     Serial.print(pesoAtual, 3);
     Serial.println(" kg");
 
-    // Envia somente a leitura temporaria.
-    // Esta rota nao cria registros na tabela de doacoes.
     enviarLeitura(pesoAtual);
 }
