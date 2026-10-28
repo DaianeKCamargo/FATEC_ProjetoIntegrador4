@@ -63,7 +63,7 @@ export default function Login() {
 
       setSenha("");
 
-      router.replace("/(admin)/dash-registration");
+      router.replace("/(admin)/(tabs)/home");
     } catch (erro) {
       setErroLogin(
         erro instanceof Error
