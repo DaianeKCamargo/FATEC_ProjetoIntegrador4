@@ -28,7 +28,7 @@ const int num_leituras = 5;
 const float peso_minimo = 0.05;
 
 // Intervalo entre leituras
-const unsigned long intervalo_leitura = 1000;
+const unsigned long intervalo_leitura = 250;
 unsigned long ultima_leitura = 0;
 
 // Conecta ao Wi-Fi
