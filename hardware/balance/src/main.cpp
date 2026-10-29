@@ -24,7 +24,7 @@ const char *WEBSOCKET_API_URL =
 HX711 balanca;
 
 const float fator_calibracao = 419.5;
-const int num_leituras = 5;
+const int num_leituras = 2;
 const float peso_minimo = 0.05;
 
 // Intervalo entre leituras
@@ -72,7 +72,7 @@ bool enviarLeitura(float peso)
         return false;
     }
 
-    https.setTimeout(5000);
+    https.setTimeout(1000);
     https.addHeader("Content-Type", "application/json");
 
     String corpoJSON = "{\"pontoId\":\"";
