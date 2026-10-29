@@ -1,6 +1,8 @@
 
 import { useEffect, useRef, useState } from 'react';
+
 import { router, useLocalSearchParams } from 'expo-router';
+
 import {
   Pressable,
   ScrollView,
@@ -8,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const API_URL = 'https://fatec-balanca.vercel.app';
@@ -21,19 +24,6 @@ type LeituraWebSocket = {
   peso: number;
   atualizadoEm?: string;
 };
-
-async function iniciarSessao(pontoId: string) {
-  const resposta = await fetch(
-    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/pesagem/iniciar`,
-    { method: 'POST' }
-  );
-
-  const texto = await resposta.text();
-
-  if (!resposta.ok) {
-    throw new Error(`Não foi possível iniciar a pesagem: ${texto}`);
-  }
-}
 
 async function salvarDoacao(pontoId: string, peso: number) {
   const resposta = await fetch(`${API_URL}/doacoes`, {
@@ -56,19 +46,6 @@ async function salvarDoacao(pontoId: string, peso: number) {
   return texto ? JSON.parse(texto) : {};
 }
 
-async function encerrarSessao(pontoId: string) {
-  const resposta = await fetch(
-    `${API_URL}/pontos/${encodeURIComponent(pontoId)}/pesagem/encerrar`,
-    { method: 'POST' }
-  );
-
-  if (!resposta.ok) {
-    throw new Error(
-      `Falha ao encerrar a pesagem: HTTP ${resposta.status}`
-    );
-  }
-}
-
 export default function DoacaoScreen() {
   const { pontoId: parametroPonto } =
     useLocalSearchParams<{ pontoId?: string | string[] }>();
@@ -87,7 +64,6 @@ export default function DoacaoScreen() {
   const socketRef = useRef<WebSocket | null>(null);
   const conexaoAtivaRef = useRef(false);
   const confirmandoRef = useRef(false);
-  const sessaoIniciadaRef = useRef(false);
 
   function fecharWebSocket() {
     conexaoAtivaRef.current = false;
@@ -246,48 +222,24 @@ export default function DoacaoScreen() {
     };
   }, []);
 
-  async function iniciarPesagem() {
-    if (
-      !pontoId ||
-      status !== 'idle' ||
-      sessaoIniciadaRef.current
-    ) {
+  function iniciarPesagem() {
+    if (!pontoId || status !== 'idle') {
       return;
     }
 
-    try {
-      setErro('');
-      setPeso(0);
-      setQuantidade(0);
-      setTemLeitura(false);
+    setErro('');
+    setPeso(0);
+    setQuantidade(0);
+    setTemLeitura(false);
+    setStatus('waiting');
 
-      console.log(
-        '[PESAGEM] Iniciando sessão para:',
-        pontoId
-      );
+    console.log(
+      '[PESAGEM] Conectando ao WebSocket para:',
+      pontoId
+    );
 
-      // Primeiro inicia a sessão na API existente.
-      await iniciarSessao(pontoId);
-
-      sessaoIniciadaRef.current = true;
-      setStatus('waiting');
-
-      // Depois abre a conexão em tempo real.
-      conectarWebSocket(pontoId);
-    } catch (erroInicio) {
-      console.error(
-        '[PESAGEM] Erro ao iniciar:',
-        erroInicio
-      );
-
-      setErro(
-        erroInicio instanceof Error
-          ? erroInicio.message
-          : 'Não foi possível iniciar a pesagem.'
-      );
-
-      setStatus('idle');
-    }
+    // Inicia a pesagem conectando diretamente ao WebSocket.
+    conectarWebSocket(pontoId);
   }
 
   async function confirmarDoacao() {
@@ -308,22 +260,12 @@ export default function DoacaoScreen() {
       // Preserva o último peso recebido antes de fechar a conexão.
       const pesoConfirmado = peso;
 
-      // Salva a doação. Se falhar, a conexão continua aberta.
+      // Salva a doação na API.
+      // Se falhar, a conexão WebSocket continua aberta.
       await salvarDoacao(pontoId, pesoConfirmado);
 
-      // Após salvar com sucesso, fecha o WebSocket.
+      // Fecha o WebSocket após salvar com sucesso.
       fecharWebSocket();
-
-      // Encerra a sessão na API da Vercel.
-      try {
-        await encerrarSessao(pontoId);
-        sessaoIniciadaRef.current = false;
-      } catch (erroEncerramento) {
-        console.error(
-          '[PESAGEM] A doação foi salva, mas houve erro ao encerrar a sessão:',
-          erroEncerramento
-        );
-      }
 
       const quantidadeConfirmada = Math.round(
         (pesoConfirmado * 1000) / 2
@@ -360,21 +302,9 @@ export default function DoacaoScreen() {
     }
   }
 
-  async function voltarAoLeitor() {
-    // Fecha a conexão imediatamente ao sair da tela.
+  function voltarAoLeitor() {
+    // Fecha a conexão ao sair da tela.
     fecharWebSocket();
-
-    if (sessaoIniciadaRef.current && pontoId) {
-      try {
-        await encerrarSessao(pontoId);
-        sessaoIniciadaRef.current = false;
-      } catch (erroEncerramento) {
-        console.error(
-          '[PESAGEM] Erro ao encerrar sessão:',
-          erroEncerramento
-        );
-      }
-    }
 
     router.back();
   }
@@ -400,9 +330,11 @@ export default function DoacaoScreen() {
 
           <View style={styles.pointInfo}>
             <Text style={styles.label}>Ponto de coleta</Text>
+
             <Text style={styles.pointId}>
               {pontoId ?? 'Não identificado'}
             </Text>
+
             <Text style={styles.activeText}>
               Ponto selecionado
             </Text>
@@ -461,12 +393,15 @@ export default function DoacaoScreen() {
           <Text style={styles.infoText}>
             1. Toque em Iniciar pesagem.
           </Text>
+
           <Text style={styles.infoText}>
             2. Coloque as tampinhas na balança.
           </Text>
+
           <Text style={styles.infoText}>
             3. Acompanhe o peso e a quantidade estimada em tempo real.
           </Text>
+
           <Text style={styles.infoText}>
             4. Confira os valores e toque em Confirmar doação para salvar.
           </Text>
