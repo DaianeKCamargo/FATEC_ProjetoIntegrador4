@@ -10,7 +10,8 @@ const app = express();
 app.use(cors({
     origin: [
         "http://localhost:8081",
-        "https://doetampinhas.vercel.app"
+        "https://doetampinhas.vercel.app",
+        "projeto-integrador-user-don-git-133afc-daianekcamargos-projects.vercel.app"
     ]
 }));
 
