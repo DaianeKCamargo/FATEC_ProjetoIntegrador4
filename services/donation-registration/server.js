@@ -11,7 +11,7 @@ const app = express();
 const origensPermitidas = [
   "http://localhost:8081",
   "https://doetampinhas.vercel.app",
-  "https://projeto-integrador-user-don-git-133afc-daianekcamargos-projects.vercel.app",
+  /^https:\/\/projeto-integrador-user-don-git-[a-z0-9]+-daianekcamargos-projects\.vercel\.app$/,
 ];
 
 app.use(cors({
