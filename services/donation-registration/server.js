@@ -7,13 +7,19 @@ const { neon } = require("./node_modules/@neondatabase/serverless");
 
 const app = express();
 
+
+const origensPermitidas = [
+  "http://localhost:8081",
+  "https://doetampinhas.vercel.app",
+  "https://projeto-integrador-user-don-git-133afc-daianekcamargos-projects.vercel.app",
+];
+
 app.use(cors({
-    origin: [
-        "http://localhost:8081",
-        "https://doetampinhas.vercel.app",
-        "projeto-integrador-user-don-git-133afc-daianekcamargos-projects.vercel.app"
-    ]
+  origin: origensPermitidas,
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"],
 }));
+
 
 app.use(express.json());
 
