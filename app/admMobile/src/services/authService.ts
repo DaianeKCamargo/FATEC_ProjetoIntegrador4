@@ -2,7 +2,10 @@
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "").replace(
+  /\/api$/,
+  ""
+);
 const TOKEN_KEY = "tampets_admin_token";
 
 let tokenWeb: string | null = null;
@@ -36,7 +39,16 @@ export async function realizarLogin(
     }),
   });
 
-  const dados = await resposta.json();
+  const corpo = await resposta.text();
+  let dados: Partial<LoginResponse> & { message?: string };
+
+  try {
+    dados = JSON.parse(corpo);
+  } catch {
+    throw new Error(
+      `A API de autenticação respondeu com conteúdo inválido (HTTP ${resposta.status}).`
+    );
+  }
 
   if (!resposta.ok) {
     throw new Error(
