@@ -1,15 +1,11 @@
+
+import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { collectionPoints } from '@/constants/collection-points';
-
-export function generateStaticParams() {
-  return [
-    { id: 'PONTO-001' },
-    { id: 'PONTO-002' },
-  ];
-}
+import type { CollectionPoint } from '@/constants/collection-points';
+import { getCollectionPoint } from '@/services/collection-points';
 
 const steps = [
   {
@@ -17,61 +13,148 @@ const steps = [
     title: 'Separe as tampinhas',
     description:
       'Separe as tampinhas plásticas e retire resíduos ou sujeiras aparentes.',
-    icon: '♻️',
   },
   {
     number: '2',
     title: 'Prepare a pesagem',
     description:
       'Coloque as tampinhas no recipiente indicado pelo responsável do ponto.',
-    icon: '🧺',
   },
   {
     number: '3',
     title: 'Confira o peso',
     description:
       'Posicione o recipiente na balança e aguarde o valor estabilizar. Peça ajuda ao responsável se necessário.',
-    icon: '⚖️',
   },
   {
     number: '4',
     title: 'Entregue sua doação',
     description:
       'Informe o peso ao responsável pelo ponto e deixe as tampinhas no local indicado para reciclagem.',
-    icon: '🤝',
   },
 ];
+
+function formatAddress(ponto: CollectionPoint) {
+  const { street, number, complement, district, city } = ponto.address;
+
+  return [
+    `${street}, ${number}`,
+    complement,
+    district,
+    city,
+  ]
+    .filter(Boolean)
+    .join(' • ');
+}
+
+function MessageScreen({
+  title,
+  message,
+  loading = false,
+}: {
+  title: string;
+  message: string;
+  loading?: boolean;
+}) {
+  return (
+    <SafeAreaView
+      className="flex-1 bg-[#FAFCF9] dark:bg-[#101A14]"
+      edges={['top']}
+    >
+      <View className="flex-1 items-center justify-center px-7">
+        <View className="mb-5 h-[84px] w-[84px] items-center justify-center rounded-full border border-[#D4E7D8] bg-[#E5F5E9] dark:border-[#344B3B] dark:bg-[#263B2E]">
+          <Text className="text-[42px]">
+            {loading ? '⏳' : '📍'}
+          </Text>
+        </View>
+
+        <Text className="text-center text-[25px] font-extrabold text-[#193B29] dark:text-[#F0F5F1]">
+          {title}
+        </Text>
+
+        <Text className="mt-3 text-center text-[15px] leading-[23px] text-[#43594A] dark:text-[#C0CEC3]">
+          {message}
+        </Text>
+      </View>
+    </SafeAreaView>
+  );
+}
 
 export default function PontoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
 
   const pontoId = Array.isArray(id) ? id[0] : id;
 
-  const ponto = collectionPoints.find(
-    (item) => item.id.toUpperCase() === pontoId?.toUpperCase(),
-  );
+  const [ponto, setPonto] = useState<CollectionPoint | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  if (!ponto || ponto.status !== 'active') {
+  useEffect(() => {
+    let active = true;
+
+    async function carregarPonto() {
+      setLoading(true);
+      setError(false);
+      setPonto(null);
+
+      const numericId = Number(pontoId);
+
+      if (!pontoId || !Number.isInteger(numericId) || numericId <= 0) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const resultado = await getCollectionPoint(numericId);
+
+        if (active) {
+          setPonto(resultado);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar ponto:', err);
+
+        if (active) {
+          setError(true);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    carregarPonto();
+
+    return () => {
+      active = false;
+    };
+  }, [pontoId]);
+
+  if (loading) {
     return (
-      <SafeAreaView
-        className="flex-1 bg-[#FAFCF9] dark:bg-[#101A14]"
-        edges={['top']}
-      >
-        <View className="flex-1 items-center justify-center px-7">
-          <View className="mb-5 h-[84px] w-[84px] items-center justify-center rounded-full border border-[#D4E7D8] bg-[#E5F5E9] dark:border-[#344B3B] dark:bg-[#263B2E]">
-            <Text className="text-[42px]">📍</Text>
-          </View>
+      <MessageScreen
+        title="Carregando ponto..."
+        message="Estamos buscando as informações do ponto de coleta."
+        loading
+      />
+    );
+  }
 
-          <Text className="text-center text-[25px] font-extrabold text-[#193B29] dark:text-[#F0F5F1]">
-            Ponto não encontrado
-          </Text>
+  if (error) {
+    return (
+      <MessageScreen
+        title="Não foi possível carregar"
+        message="Verifique sua conexão e tente acessar o ponto novamente."
+      />
+    );
+  }
 
-          <Text className="mt-3 text-center text-[15px] leading-[23px] text-[#43594A] dark:text-[#C0CEC3]">
-            Confira o QR Code ou entre em contato com o responsável pelo ponto
-            de coleta.
-          </Text>
-        </View>
-      </SafeAreaView>
+  if (!ponto || ponto.status !== 'APROVADO') {
+    return (
+      <MessageScreen
+        title="Ponto não encontrado"
+        message="Confira o QR Code ou entre em contato com o responsável pelo ponto de coleta."
+      />
     );
   }
 
@@ -89,7 +172,7 @@ export default function PontoScreen() {
         <View className="rounded-[28px] border border-[#245D38] bg-[#176638] p-6 shadow-[0px_14px_30px_rgba(23,102,56,0.14)] dark:border-[#426C4D] dark:bg-[#203D2A] dark:shadow-none">
           <View className="mb-7 flex-row items-center justify-between">
             <Text className="text-[15px] font-extrabold text-[#E0F2E4]">
-              TAMPETS ♻️
+              TAMPETS
             </Text>
 
             <View className="rounded-full border border-white/25 bg-white/10 px-3 py-1.5">
@@ -108,21 +191,34 @@ export default function PontoScreen() {
           </Text>
 
           <Text className="mt-2.5 text-[14px] leading-[21px] text-[#E5F2E8]">
-            {ponto.address}
+            {formatAddress(ponto)}
           </Text>
 
           <View className="mt-[18px] flex-row items-center gap-[7px] self-start rounded-full border border-white/15 bg-white/10 px-3 py-2">
             <View className="h-2 w-2 rounded-full bg-[#A8E6B8]" />
-            <Text className="text-xs font-bold text-white">Ponto ativo</Text>
+            <Text className="text-xs font-bold text-white">
+              Ponto ativo
+            </Text>
           </View>
+        </View>
+
+        {/* Horários de funcionamento */}
+        <View className="mt-[22px] rounded-[22px] border border-[#CDE6D3] bg-[#E5F5E9] p-5 dark:border-[#344B3B] dark:bg-[#1D3024]">
+          <Text className="text-[17px] font-extrabold text-[#193B29] dark:text-[#F0F5F1]">
+            Horário de funcionamento
+          </Text>
+
+          <Text className="mt-2 text-[14px] leading-[22px] text-[#43594A] dark:text-[#C0CEC3]">
+            {ponto.opensDay}
+          </Text>
+
+          <Text className="text-[14px] font-bold text-[#176638] dark:text-[#B9E6C4]">
+            {ponto.hourInit} às {ponto.hourFinal}
+          </Text>
         </View>
 
         {/* Mensagem de boas-vindas */}
         <View className="mt-[22px] rounded-[22px] border border-[#CDE6D3] bg-[#E5F5E9] p-5 dark:border-[#344B3B] dark:bg-[#1D3024]">
-          <View className="mb-3 h-11 w-11 items-center justify-center rounded-full bg-white/80 dark:bg-[#304A37]">
-            <Text className="text-[25px]">🌱</Text>
-          </View>
-
           <Text className="text-[19px] font-extrabold text-[#193B29] dark:text-[#F0F5F1]">
             Sua atitude transforma!
           </Text>
@@ -166,20 +262,15 @@ export default function PontoScreen() {
                   {step.description}
                 </Text>
               </View>
-
-              <Text className="ml-1 text-[23px]">{step.icon}</Text>
             </View>
           ))}
         </View>
 
         {/* Aviso */}
         <View className="mt-4 rounded-[20px] border border-[#E9D99D] bg-[#FFF9E8] p-[18px] dark:border-[#65552B] dark:bg-[#332D1D]">
-          <View className="mb-2 flex-row items-center gap-2">
-            <Text className="text-[20px]">💡</Text>
-            <Text className="text-[15px] font-extrabold text-[#77520A] dark:text-[#F5D98A]">
-              Antes de começar
-            </Text>
-          </View>
+          <Text className="mb-2 text-[15px] font-extrabold text-[#77520A] dark:text-[#F5D98A]">
+            Antes de começar
+          </Text>
 
           <Text className="text-[13px] leading-5 text-[#775F2B] dark:text-[#E8D9AD]">
             A pesagem deve seguir as orientações do responsável pelo local.
@@ -196,19 +287,22 @@ export default function PontoScreen() {
           onPress={() =>
             router.push({
               pathname: '/doacao',
-              params: { pontoId: ponto.id },
+              params: { pontoId: String(ponto.id) },
             })
           }
         >
           <Text className="text-[16px] font-extrabold text-white">
             Iniciar doação
           </Text>
-          <Text className="text-[20px] font-extrabold text-white">→</Text>
+
+          <Text className="text-[20px] font-extrabold text-white">
+            →
+          </Text>
         </Pressable>
 
         {/* Rodapé */}
         <Text className="mt-7 text-center text-[12px] text-[#526758] dark:text-[#B5C4B8]">
-          Tampets • Cada tampinha conta 💚
+          Tampets • Cada tampinha conta
         </Text>
       </ScrollView>
     </SafeAreaView>

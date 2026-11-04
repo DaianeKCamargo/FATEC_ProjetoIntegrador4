@@ -1,22 +1,20 @@
 
 export type CollectionPoint = {
-  id: string;
+  id: number;
   name: string;
-  address: string;
-  status: 'active' | 'inactive';
+  status: 'APROVADO';
+  opensDay: string;
+  hourInit: string;
+  hourFinal: string;
+  photo: string;
+  address: {
+    street: string;
+    number: string;
+    complement: string | null;
+    district: string;
+    city: string;
+    postCode: string;
+    latitude: number | null;
+    longitude: number | null;
+  };
 };
-
-export const collectionPoints: CollectionPoint[] = [
-  {
-    id: 'PONTO-001',
-    name: 'Ponto de Coleta Central',
-    address: 'Praça Central',
-    status: 'active',
-  },
-  {
-    id: 'PONTO-002',
-    name: 'Ponto de Coleta do Parque',
-    address: 'Parque Municipal',
-    status: 'active',
-  },
-];
