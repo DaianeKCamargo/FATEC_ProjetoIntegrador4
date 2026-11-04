@@ -5,6 +5,7 @@ const express = require("express");
 const cors = require("cors");
 const loginRoutes = require("./src/routes/loginRoutes");
 const autenticarToken = require("./src/middlewares/autenticarToken");
+const adminRoutes = require("./src/routes/adminRoutes");
 
 const app = express();
 
@@ -19,6 +20,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/login", loginRoutes);
+app.use("/api/admins", adminRoutes);
 
 // Rota de teste protegida por JWT
 app.get("/api/admin/me", autenticarToken, (req, res) => {
