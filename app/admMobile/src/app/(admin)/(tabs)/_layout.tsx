@@ -5,7 +5,6 @@ import { Ionicons } from "@expo/vector-icons";
 export default function TabsLayout() {
   return (
     <Tabs
-      initialRouteName="home"
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#8754BF",
@@ -24,17 +23,25 @@ export default function TabsLayout() {
         options={{
           title: "Início",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
+            <Ionicons
+              name="home-outline"
+              size={size}
+              color={typeof color === "string" ? color : "#8754BF"}
+            />
           ),
         }}
       />
 
       <Tabs.Screen
-        name="dash-animals"
+        name="dash-animal"
         options={{
           title: "Animais",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="paw-outline" size={size} color={color} />
+            <Ionicons
+              name="paw-outline"
+              size={size}
+              color={typeof color === "string" ? color : "#8754BF"}
+            />
           ),
         }}
       />
@@ -44,7 +51,11 @@ export default function TabsLayout() {
         options={{
           title: "Tampinhas",
           tabBarIcon: ({ color, size }) => (
-           <Ionicons name="leaf-outline" size={size} color={color} />
+            <Ionicons
+              name="leaf-outline"
+              size={size}
+              color={typeof color === "string" ? color : "#8754BF"}
+            />
           ),
         }}
       />
@@ -54,7 +65,11 @@ export default function TabsLayout() {
         options={{
           title: "Credenciais",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="people-outline" size={size} color={color} />
+            <Ionicons
+              name="people-outline"
+              size={size}
+              color={typeof color === "string" ? color : "#8754BF"}
+            />
           ),
         }}
       />
