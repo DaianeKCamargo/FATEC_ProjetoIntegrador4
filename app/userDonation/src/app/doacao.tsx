@@ -6,12 +6,14 @@ import { router, useLocalSearchParams } from 'expo-router';
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
 
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import type { CollectionPoint } from '@/constants/collection-points';
+import { getCollectionPoint } from '@/services/collection-points';
 
 const API_URL = 'https://fatec-balanca.vercel.app';
 const WEBSOCKET_URL = 'wss://weight-websocket.onrender.com';
@@ -54,6 +56,10 @@ export default function DoacaoScreen() {
     ? parametroPonto[0]
     : parametroPonto;
 
+  const [ponto, setPonto] = useState<CollectionPoint | null>(null);
+  const [carregandoPonto, setCarregandoPonto] = useState(true);
+  const [erroPonto, setErroPonto] = useState('');
+
   const [status, setStatus] = useState<Status>('idle');
   const [peso, setPeso] = useState(0);
   const [quantidade, setQuantidade] = useState(0);
@@ -65,6 +71,50 @@ export default function DoacaoScreen() {
   const conexaoAtivaRef = useRef(false);
   const confirmandoRef = useRef(false);
 
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarPonto() {
+      setCarregandoPonto(true);
+      setErroPonto('');
+      setPonto(null);
+
+      const id = Number(pontoId);
+
+      if (!pontoId || !Number.isInteger(id) || id <= 0) {
+        setErroPonto('Identificação do ponto de coleta inválida.');
+        setCarregandoPonto(false);
+        return;
+      }
+
+      try {
+        const resultado = await getCollectionPoint(id);
+
+        if (ativo) {
+          setPonto(resultado);
+        }
+      } catch (erroBusca) {
+        console.error('[DOACAO] Erro ao buscar ponto:', erroBusca);
+
+        if (ativo) {
+          setErroPonto(
+            'Não foi possível carregar os dados do ponto de coleta.'
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoPonto(false);
+        }
+      }
+    }
+
+    carregarPonto();
+
+    return () => {
+      ativo = false;
+    };
+  }, [pontoId]);
+
   function fecharWebSocket() {
     conexaoAtivaRef.current = false;
 
@@ -72,7 +122,6 @@ export default function DoacaoScreen() {
     socketRef.current = null;
 
     if (socket) {
-      // Evita executar manipuladores antigos durante o fechamento.
       socket.onopen = null;
       socket.onmessage = null;
       socket.onerror = null;
@@ -110,10 +159,7 @@ export default function DoacaoScreen() {
           return;
         }
 
-        console.log(
-          '[WEBSOCKET] Conectado ao ponto:',
-          idPonto
-        );
+        console.log('[WEBSOCKET] Conectado ao ponto:', idPonto);
 
         setErro('');
         setStatus('waiting');
@@ -139,17 +185,12 @@ export default function DoacaoScreen() {
             !Number.isFinite(leitura.peso) ||
             leitura.peso < 0
           ) {
-            console.warn(
-              '[WEBSOCKET] Mensagem inválida:',
-              leitura
-            );
+            console.warn('[WEBSOCKET] Mensagem inválida:', leitura);
             return;
           }
 
           const pesoAtual = leitura.peso;
-          const quantidadeAtual = Math.round(
-            (pesoAtual * 1000) / 2
-          );
+          const quantidadeAtual = Math.round((pesoAtual * 1000) / 2);
 
           setPeso(pesoAtual);
           setQuantidade(quantidadeAtual);
@@ -157,11 +198,7 @@ export default function DoacaoScreen() {
           setStatus(pesoAtual > 0 ? 'ready' : 'waiting');
           setErro('');
 
-          console.log(
-            '[WEBSOCKET] Peso recebido:',
-            pesoAtual,
-            'kg'
-          );
+          console.log('[WEBSOCKET] Peso recebido:', pesoAtual, 'kg');
         } catch (erroMensagem) {
           console.error(
             '[WEBSOCKET] Erro ao processar mensagem:',
@@ -178,14 +215,9 @@ export default function DoacaoScreen() {
           return;
         }
 
-        console.error(
-          '[WEBSOCKET] Erro de conexão:',
-          evento
-        );
+        console.error('[WEBSOCKET] Erro de conexão:', evento);
 
-        setErro(
-          'Erro na conexão com a balança em tempo real.'
-        );
+        setErro('Erro na conexão com a balança em tempo real.');
       };
 
       socket.onclose = () => {
@@ -210,9 +242,7 @@ export default function DoacaoScreen() {
         erroConexao
       );
 
-      setErro(
-        'Não foi possível conectar à balança em tempo real.'
-      );
+      setErro('Não foi possível conectar à balança em tempo real.');
     }
   }
 
@@ -223,7 +253,12 @@ export default function DoacaoScreen() {
   }, []);
 
   function iniciarPesagem() {
-    if (!pontoId || status !== 'idle') {
+    if (
+      !pontoId ||
+      !ponto ||
+      carregandoPonto ||
+      status !== 'idle'
+    ) {
       return;
     }
 
@@ -233,12 +268,8 @@ export default function DoacaoScreen() {
     setTemLeitura(false);
     setStatus('waiting');
 
-    console.log(
-      '[PESAGEM] Conectando ao WebSocket para:',
-      pontoId
-    );
+    console.log('[PESAGEM] Conectando ao WebSocket para:', pontoId);
 
-    // Inicia a pesagem conectando diretamente ao WebSocket.
     conectarWebSocket(pontoId);
   }
 
@@ -257,14 +288,10 @@ export default function DoacaoScreen() {
     setErro('');
 
     try {
-      // Preserva o último peso recebido antes de fechar a conexão.
       const pesoConfirmado = peso;
 
-      // Salva a doação na API.
-      // Se falhar, a conexão WebSocket continua aberta.
       await salvarDoacao(pontoId, pesoConfirmado);
 
-      // Fecha o WebSocket após salvar com sucesso.
       fecharWebSocket();
 
       const quantidadeConfirmada = Math.round(
@@ -280,16 +307,11 @@ export default function DoacaoScreen() {
         params: {
           pontoId,
           peso: String(pesoConfirmado),
-          quantidadeTampinhas: String(
-            quantidadeConfirmada
-          ),
+          quantidadeTampinhas: String(quantidadeConfirmada),
         },
       });
     } catch (erroSalvar) {
-      console.error(
-        '[DOACAO] Erro ao salvar:',
-        erroSalvar
-      );
+      console.error('[DOACAO] Erro ao salvar:', erroSalvar);
 
       setErro(
         erroSalvar instanceof Error
@@ -303,71 +325,128 @@ export default function DoacaoScreen() {
   }
 
   function voltarAoLeitor() {
-    // Fecha a conexão ao sair da tela.
     fecharWebSocket();
-
     router.back();
   }
 
-  const mostrarBotaoIniciar = status === 'idle';
+  const endereco = ponto
+    ? [
+        `${ponto.address.street}, ${ponto.address.number}`,
+        ponto.address.complement,
+        ponto.address.district,
+        ponto.address.city,
+      ]
+          .filter(Boolean)
+          .join(' • ')
+    : '';
+
+  const enderecoCompleto = ponto
+    ? `${endereco} - ${ponto.address.postCode}`
+    : '';
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView className="flex-1 bg-[#F7FBF5]">
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerClassName="flex-grow px-6 pt-6 pb-8"
       >
-        <Text style={styles.title}>Sua doação</Text>
-
-        <Text style={styles.description}>
-          Prepare suas tampinhas e acompanhe a pesagem.
+        <Text className="text-center text-[28px] font-extrabold text-[#173D2B]">
+          Sua doação
         </Text>
 
-        <View style={styles.pointCard}>
-          <View style={styles.pointIcon}>
-            <Text style={styles.iconText}>📍</Text>
-          </View>
+        <Text className="mt-2 mb-6 text-center text-[15px] leading-[22px] text-[#5C7163]">
+          Prepare suas tampinhas e acompanhe a pesagem em tempo real.
+        </Text>
 
-          <View style={styles.pointInfo}>
-            <Text style={styles.label}>Ponto de coleta</Text>
+        {/* Ponto de coleta */}
+        <View className="rounded-[18px] border border-[#DCE8DD] bg-white p-5">
+          <Text className="text-[11px] font-extrabold tracking-[1.3px] text-[#168447]">
+            PONTO DE COLETA
+          </Text>
 
-            <Text style={styles.pointId}>
-              {pontoId ?? 'Não identificado'}
+          {carregandoPonto ? (
+            <Text className="mt-3 text-sm text-[#718174]">
+              Carregando informações do ponto...
             </Text>
-
-            <Text style={styles.activeText}>
-              Ponto selecionado
+          ) : erroPonto ? (
+            <Text className="mt-3 text-sm leading-5 text-[#9B3026]">
+              {erroPonto}
             </Text>
-          </View>
+          ) : ponto ? (
+            <>
+              <Text className="mt-2 text-[21px] font-extrabold text-[#173D2B]">
+                {ponto.name}
+              </Text>
+
+              <Text className="mt-2 text-sm leading-[21px] text-[#5C7163]">
+                {enderecoCompleto}
+              </Text>
+
+              <View className="my-4 h-px bg-[#E5ECE5]" />
+
+              <View className="gap-4">
+                <View>
+                  <Text className="text-[10px] font-bold tracking-wider text-[#718174]">
+                    DIAS DE FUNCIONAMENTO
+                  </Text>
+
+                  <Text className="mt-1 text-sm font-semibold text-[#173D2B]">
+                    {ponto.opensDay}
+                  </Text>
+                </View>
+
+                <View>
+                  <Text className="text-[10px] font-bold tracking-wider text-[#718174]">
+                    HORÁRIO
+                  </Text>
+
+                  <Text className="mt-1 text-sm font-semibold text-[#173D2B]">
+                    {ponto.hourInit} às {ponto.hourFinal}
+                  </Text>
+                </View>
+              </View>
+
+              <Text className="mt-4 text-[11px] text-[#8A998D]">
+                Código do ponto: {ponto.id}
+              </Text>
+            </>
+          ) : (
+            <Text className="mt-3 text-sm text-[#9B3026]">
+              Ponto de coleta não encontrado.
+            </Text>
+          )}
         </View>
 
-        <View style={styles.weightCard}>
-          <Text style={styles.weightLabel}>
+        {/* Pesagem */}
+        <View className="mt-5 items-center rounded-3xl bg-[#173D2B] p-6">
+          <Text className="text-xs font-bold tracking-[1.5px] text-[#C8E6D0]">
             PESO DA DOAÇÃO
           </Text>
 
-          <Text style={styles.weightValue}>
+          <Text className="mt-3 text-[46px] font-extrabold text-white">
             {peso.toFixed(3).replace('.', ',')}
           </Text>
 
-          <Text style={styles.unit}>kg</Text>
+          <Text className="-mt-1 text-base text-[#C8E6D0]">
+            kg
+          </Text>
 
           {temLeitura && (
-            <Text style={styles.quantityText}>
+            <Text className="mt-3 text-[15px] font-bold text-white">
               Aproximadamente {quantidade} tampinhas
             </Text>
           )}
 
-          <View style={styles.statusBadge}>
+          <View className="mt-5 flex-row items-center gap-2 rounded-full bg-[#28543D] px-3 py-2">
             <View
-              style={[
-                styles.statusDot,
-                status !== 'idle' && styles.waitingDot,
-                status === 'ready' && styles.finishedDot,
-              ]}
+              className={`h-2 w-2 rounded-full ${
+                status === 'idle'
+                  ? 'bg-[#F0C36A]'
+                  : 'bg-[#8BD5A3]'
+              }`}
             />
 
-            <Text style={styles.statusText}>
+            <Text className="text-xs font-semibold text-white">
               {!pontoId
                 ? 'Ponto não identificado'
                 : status === 'idle'
@@ -375,73 +454,59 @@ export default function DoacaoScreen() {
                   : status === 'waiting'
                     ? 'Aguardando leitura da balança...'
                     : status === 'ready'
-                      ? 'Pesagem ao vivo'
+                      ? 'Pesagem em andamento'
                       : 'Doação confirmada'}
             </Text>
           </View>
         </View>
 
+        {/* Erros */}
         {!!erro && (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{erro}</Text>
+          <View className="mt-4 rounded-xl border border-[#F3D1CB] bg-[#FCEBE8] p-3">
+            <Text className="text-center text-[13px] leading-[19px] text-[#9B3026]">
+              {erro}
+            </Text>
           </View>
         )}
 
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Como funciona?</Text>
-
-          <Text style={styles.infoText}>
-            1. Toque em Iniciar pesagem.
-          </Text>
-
-          <Text style={styles.infoText}>
-            2. Coloque as tampinhas na balança.
-          </Text>
-
-          <Text style={styles.infoText}>
-            3. Acompanhe o peso e a quantidade estimada em tempo real.
-          </Text>
-
-          <Text style={styles.infoText}>
-            4. Confira os valores e toque em Confirmar doação para salvar.
-          </Text>
-        </View>
-
-        {mostrarBotaoIniciar && (
+        {/* Iniciar pesagem */}
+        {status === 'idle' && (
           <Pressable
-            style={[
-              styles.button,
-              !pontoId && styles.buttonDisabled,
-            ]}
+            className={`mt-[22px] items-center rounded-[14px] py-4 ${
+              !pontoId || !ponto || carregandoPonto
+                ? 'bg-[#7CA98B]'
+                : 'bg-[#168447]'
+            }`}
             onPress={iniciarPesagem}
-            disabled={!pontoId}
+            disabled={!pontoId || !ponto || carregandoPonto}
           >
-            <Text style={styles.buttonText}>
-              Iniciar pesagem
+            <Text className="text-base font-bold text-white">
+              {carregandoPonto
+                ? 'Carregando ponto...'
+                : 'Iniciar pesagem'}
             </Text>
           </Pressable>
         )}
 
+        {/* Aguardando leitura */}
         {status === 'waiting' && (
-          <View
-            style={[styles.button, styles.buttonDisabled]}
-          >
-            <Text style={styles.buttonText}>
-              Pesagem em andamento...
+          <View className="mt-[22px] items-center rounded-[14px] bg-[#7CA98B] py-4">
+            <Text className="text-base font-bold text-white">
+              Aguardando pesagem...
             </Text>
           </View>
         )}
 
+        {/* Confirmar doação */}
         {status === 'ready' && (
           <Pressable
-            style={[
-              styles.confirmButton,
-              confirmando && styles.buttonDisabled,
-            ]}
+            className={`mt-[22px] items-center rounded-[14px] py-4 ${
+              confirmando ? 'bg-[#7CA98B]' : 'bg-[#173D2B]'
+            }`}
             onPress={confirmarDoacao}
             disabled={confirmando}
           >
-            <Text style={styles.buttonText}>
+            <Text className="text-base font-bold text-white">
               {confirmando
                 ? 'Salvando doação...'
                 : 'Confirmar doação'}
@@ -449,17 +514,17 @@ export default function DoacaoScreen() {
           </Pressable>
         )}
 
-        <Text style={styles.disclaimer}>
+        <Text className="mt-3 text-center text-xs leading-[18px] text-[#718174]">
           O peso é atualizado pela balança. A quantidade de
           tampinhas é uma estimativa baseada em 2 g por unidade.
-          A doação só é salva após a confirmação.
+          A doação só é registrada após a confirmação.
         </Text>
 
         <Pressable
-          style={styles.backButton}
+          className="mt-1 items-center py-4"
           onPress={voltarAoLeitor}
         >
-          <Text style={styles.backButtonText}>
+          <Text className="text-sm font-bold text-[#168447]">
             Voltar ao leitor
           </Text>
         </Pressable>
@@ -467,197 +532,3 @@ export default function DoacaoScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F7FBF5',
-    paddingHorizontal: 24,
-  },
-  scrollContent: {
-    paddingTop: 24,
-    paddingBottom: 24,
-    flexGrow: 1,
-  },
-  title: {
-    color: '#173D2B',
-    fontSize: 28,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  description: {
-    color: '#5C7163',
-    fontSize: 15,
-    lineHeight: 22,
-    textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  pointCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#DCE8DD',
-    gap: 14,
-  },
-  pointIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#E6F4E8',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconText: {
-    fontSize: 22,
-  },
-  pointInfo: {
-    flex: 1,
-    gap: 3,
-  },
-  label: {
-    color: '#5C7163',
-    fontSize: 13,
-  },
-  pointId: {
-    color: '#173D2B',
-    fontSize: 19,
-    fontWeight: '800',
-  },
-  activeText: {
-    color: '#168447',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  weightCard: {
-    backgroundColor: '#173D2B',
-    borderRadius: 24,
-    padding: 24,
-    alignItems: 'center',
-    marginTop: 20,
-  },
-  weightLabel: {
-    color: '#C8E6D0',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-  },
-  weightValue: {
-    color: '#FFFFFF',
-    fontSize: 46,
-    fontWeight: '800',
-    marginTop: 14,
-  },
-  unit: {
-    color: '#C8E6D0',
-    fontSize: 16,
-    marginTop: -2,
-  },
-  quantityText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: 12,
-  },
-  statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#28543D',
-    paddingVertical: 9,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    marginTop: 20,
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F0C36A',
-  },
-  waitingDot: {
-    backgroundColor: '#8BD5A3',
-  },
-  finishedDot: {
-    backgroundColor: '#8BD5A3',
-  },
-  statusText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 18,
-    padding: 18,
-    marginTop: 20,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#DCE8DD',
-  },
-  infoTitle: {
-    color: '#173D2B',
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
-  infoText: {
-    color: '#5C7163',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  button: {
-    backgroundColor: '#168447',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 22,
-  },
-  buttonDisabled: {
-    backgroundColor: '#7CA98B',
-  },
-  confirmButton: {
-    backgroundColor: '#173D2B',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginTop: 22,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  disclaimer: {
-    color: '#718174',
-    fontSize: 12,
-    lineHeight: 18,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  errorCard: {
-    backgroundColor: '#FCEBE8',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 14,
-  },
-  errorText: {
-    color: '#9B3026',
-    fontSize: 13,
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  backButton: {
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 4,
-  },
-  backButtonText: {
-    color: '#168447',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-});
