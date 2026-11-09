@@ -179,7 +179,7 @@ app.get("/pontos/:pontoId/ultima-doacao", async (req, res) => {
 });
 
 // Inicialização do servidor
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3002;
 
 app.listen(PORT, () => {
   console.log(`API de registro de doações executando na porta ${PORT}`);
