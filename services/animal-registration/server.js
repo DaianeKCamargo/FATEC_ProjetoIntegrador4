@@ -1,7 +1,16 @@
-require("dotenv").config();
+const path = require("path");
+const dotenv = require("dotenv");
+
+const dotenvResult = dotenv.config({
+    path: path.join(__dirname, ".env")
+});
+
+if (dotenvResult.error) {
+    throw new Error(`Nao foi possivel carregar o arquivo .env: ${dotenvResult.error.message}`);
+}
 
 const express = require("express");
-const relatoriosAnimaisRoutes = require("./routes/animalRoutes");
+const relatoriosAnimaisRoutes = require("./src/routes/animalRoutes");
 
 const app = express();
 const PORT = process.env.RELATORIO_ANIMAIS_PORT || 5503;
