@@ -1,6 +1,5 @@
-
 import { NativeTabs } from 'expo-router/unstable-native-tabs';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme } from 'react-native';
 
 import { Colors } from '@/constants/theme';
 
@@ -12,8 +11,11 @@ export default function AppTabs() {
     <NativeTabs
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}
+      labelStyle={{
+        selected: { color: colors.text },
+      }}
     >
+      {/* Página inicial */}
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
@@ -21,6 +23,17 @@ export default function AppTabs() {
           renderingMode="template"
         />
       </NativeTabs.Trigger>
+
+      {/* Leitor de QR Code: somente dispositivos móveis */}
+      {Platform.OS !== 'web' && (
+        <NativeTabs.Trigger name="ler-qr">
+          <NativeTabs.Trigger.Label>QR Code</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Icon
+            src={require('@/assets/images/tabIcons/qr-code.png')}
+            renderingMode="template"
+          />
+        </NativeTabs.Trigger>
+      )}
     </NativeTabs>
   );
 }
