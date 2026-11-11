@@ -1,3 +1,4 @@
+
 const express = require("express");
 const http = require("http");
 const { WebSocketServer, WebSocket } = require("ws");
@@ -9,6 +10,9 @@ app.use(express.json());
 
 const wss = new WebSocketServer({ server });
 
+// Armazena uma única conexão ativa por ponto de coleta
+const conexoesPorPonto = new Map();
+
 // Verifica se o serviço está funcionando
 app.get("/", (req, res) => {
     res.json({
@@ -17,7 +21,7 @@ app.get("/", (req, res) => {
 });
 
 // Recebe uma leitura de peso via HTTP e transmite
-// somente aos clientes inscritos no ponto correspondente
+// somente ao cliente conectado ao ponto correspondente
 app.post("/peso", (req, res) => {
     const { pontoId, peso } = req.body;
 
@@ -42,15 +46,15 @@ app.post("/peso", (req, res) => {
 
     let clientesNotificados = 0;
 
-    wss.clients.forEach((cliente) => {
-        if (
-            cliente.readyState === WebSocket.OPEN &&
-            cliente.pontoId === pontoId
-        ) {
-            cliente.send(JSON.stringify(leitura));
-            clientesNotificados++;
-        }
-    });
+    const cliente = conexoesPorPonto.get(pontoId);
+
+    if (
+        cliente &&
+        cliente.readyState === WebSocket.OPEN
+    ) {
+        cliente.send(JSON.stringify(leitura));
+        clientesNotificados++;
+    }
 
     res.json({
         mensagem: "Leitura recebida.",
@@ -69,12 +73,52 @@ wss.on("connection", (ws, req) => {
         return;
     }
 
+    // Verifica se já existe alguém conectado ao ponto
+    const conexaoExistente = conexoesPorPonto.get(pontoId);
+
+    if (
+        conexaoExistente &&
+        conexaoExistente.readyState !== WebSocket.CLOSED
+    ) {
+        console.log(
+            `Conexao recusada: ponto ${pontoId} ja esta em uso.`
+        );
+
+        ws.send(JSON.stringify({
+            tipo: "erro",
+            mensagem: "Este ponto de coleta já está sendo utilizado."
+        }));
+
+        ws.close(1008, "Ponto ja esta em uso.");
+        return;
+    }
+
+    // Registra a nova conexão
     ws.pontoId = pontoId;
+    conexoesPorPonto.set(pontoId, ws);
 
-    console.log(`Cliente conectado ao ponto ${pontoId}.`);
+    console.log(
+        `Cliente conectado ao ponto ${pontoId}.`
+    );
 
+    // Libera o ponto quando o cliente desconectar
     ws.on("close", () => {
-        console.log(`Cliente desconectado do ponto ${pontoId}.`);
+
+        // Evita remover uma conexão mais recente
+        if (conexoesPorPonto.get(pontoId) === ws) {
+            conexoesPorPonto.delete(pontoId);
+        }
+
+        console.log(
+            `Cliente desconectado do ponto ${pontoId}.`
+        );
+    });
+
+    ws.on("error", (erro) => {
+        console.error(
+            `Erro WebSocket no ponto ${pontoId}:`,
+            erro.message
+        );
     });
 });
 

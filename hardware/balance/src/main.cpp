@@ -1,164 +1,192 @@
 
 #include <Arduino.h>
-#include <HX711.h>
 #include <WiFi.h>
-#include <HTTPClient.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>
+#include "HX711.h"
 
-// Definicao dos pinos
+// ------------------------------
+// CONFIGURACOES DA BALANCA
+// ------------------------------
+
 #define DT 4
 #define SCK 5
 
-// Configuracao Wi-Fi
-const char *SSID = "Wokwi-GUEST";
-const char *SENHA = "";
-
-// Identificador do ponto de coleta
-const char *PONTO_ID = "PONTO-001";
-
-// Endereco do servidor WebSocket (recebe o peso via HTTP)
-const char *WEBSOCKET_API_URL =
-    "https://weight-websocket.onrender.com";
-
-// Configuracao da balanca
 HX711 balanca;
 
-const float fator_calibracao = 419.5;
-const int num_leituras = 2;
-const float peso_minimo = 0.05;
+float fator_calibracao = 300743.0;
 
-// Intervalo entre leituras
-const unsigned long intervalo_leitura = 250;
-unsigned long ultima_leitura = 0;
+// ------------------------------
+// CONFIGURACOES DO WIFI
+// ------------------------------
 
-// Conecta ao Wi-Fi
-void conectar_wifi()
+const char *ssid = "Desktop_F7665003";
+const char *senha = "CamarG0291";
+
+// ------------------------------
+// CONFIGURACOES DO SERVIDOR
+// ------------------------------
+
+const char *servidor = "https://weight-websocket.onrender.com/peso";
+
+const char *pontoId = "8";
+
+// Intervalo de envio: 1 segundo
+unsigned long ultimoEnvio = 0;
+const unsigned long intervaloEnvio = 1000;
+
+// ------------------------------
+// CONEXAO WIFI
+// ------------------------------
+
+void conectarWiFi()
 {
-    Serial.print("Conectando ao Wi-Fi: ");
-    Serial.println(SSID);
+    Serial.println("Conectando ao Wi-Fi...");
 
-    WiFi.begin(SSID, SENHA);
+    WiFi.begin(ssid, senha);
 
     while (WiFi.status() != WL_CONNECTED)
     {
         delay(500);
-        Serial.println("Conectando...");
+        Serial.print(".");
     }
 
+    Serial.println();
     Serial.println("Wi-Fi conectado!");
+
     Serial.print("Endereco IP: ");
     Serial.println(WiFi.localIP());
 }
 
-// Envia o peso para o servidor Render
-bool enviarLeitura(float peso)
+// ------------------------------
+// ENVIO DO PESO
+// ------------------------------
+
+void enviarPeso(float peso)
 {
     if (WiFi.status() != WL_CONNECTED)
     {
         Serial.println("Wi-Fi desconectado!");
-        return false;
+        return;
     }
 
     WiFiClientSecure cliente;
-    cliente.setInsecure(); // Somente para testes no Wokwi
 
-    HTTPClient https;
+    // Para o primeiro teste de integracao.
+    cliente.setInsecure();
 
-    String url = String(WEBSOCKET_API_URL) + "/peso";
+    HTTPClient http;
 
-    if (!https.begin(cliente, url))
+    if (!http.begin(cliente, servidor))
     {
-        Serial.println("Erro ao iniciar requisicao HTTPS.");
-        return false;
+        Serial.println("Falha ao iniciar conexao HTTP.");
+        return;
     }
 
-    https.setTimeout(1000);
-    https.addHeader("Content-Type", "application/json");
+    http.addHeader("Content-Type", "application/json");
 
-    String corpoJSON = "{\"pontoId\":\"";
-    corpoJSON += PONTO_ID;
-    corpoJSON += "\",\"peso\":";
-    corpoJSON += String(peso, 3);
-    corpoJSON += "}";
+    String json = "{\"pontoId\":\"";
+    json += pontoId;
+    json += "\",\"peso\":";
+    json += String(peso, 3);
+    json += "}";
 
-    int codigoHTTP = https.POST(corpoJSON);
+    Serial.print("Enviando: ");
+    Serial.println(json);
 
-    bool sucesso = codigoHTTP >= 200 && codigoHTTP < 300;
+    int codigoHTTP = http.POST(json);
 
-    if (sucesso)
+    if (codigoHTTP > 0)
     {
-        Serial.print("Leitura enviada ao Render: ");
-        Serial.print(peso, 3);
-        Serial.println(" kg");
+        Serial.print("Codigo HTTP: ");
+        Serial.println(codigoHTTP);
+
+        String resposta = http.getString();
+
+        Serial.print("Resposta: ");
+        Serial.println(resposta);
     }
     else
     {
-        Serial.print("Erro HTTP ao enviar leitura: ");
-        Serial.println(codigoHTTP);
-
-        if (codigoHTTP > 0)
-        {
-            Serial.println(https.getString());
-        }
-        else
-        {
-            Serial.println(https.errorToString(codigoHTTP));
-        }
+        Serial.print("Erro no envio: ");
+        Serial.println(http.errorToString(codigoHTTP));
     }
 
-    https.end();
-
-    return sucesso;
+    http.end();
 }
 
-// Inicializacao
+// ------------------------------
+// INICIALIZACAO
+// ------------------------------
+
 void setup()
 {
     Serial.begin(115200);
 
-    Serial.println("==============================");
-    Serial.println("SISTEMA DE DOACAO DE TAMPINHAS");
-    Serial.println("==============================");
+    delay(1000);
 
-    conectar_wifi();
+    Serial.println("=== BALANCA TAMPETS ===");
 
+    // Inicializa o HX711
     balanca.begin(DT, SCK);
 
-    Serial.println("HX711 configurado!");
+    balanca.set_scale(fator_calibracao);
+
+    // Conecta ao Wi-Fi
+    conectarWiFi();
+
+    // Aguarda estabilizacao e executa a tara
+    Serial.println("Retire todos os pesos da balanca.");
+
+    delay(5000);
+
+    balanca.tare();
+
+    Serial.println("Balanca zerada!");
+    Serial.println("Iniciando envio de peso...");
 }
 
-// Execucao continua
+// ------------------------------
+// EXECUCAO PRINCIPAL
+// ------------------------------
+
 void loop()
 {
     if (WiFi.status() != WL_CONNECTED)
     {
-        conectar_wifi();
+        conectarWiFi();
     }
 
-    if (millis() - ultima_leitura < intervalo_leitura)
+    if (millis() - ultimoEnvio >= intervaloEnvio)
     {
-        return;
+        ultimoEnvio = millis();
+
+        if (balanca.is_ready())
+        {
+            float peso = balanca.get_units(5);
+
+            // Corrige pequenas variacoes negativas
+            if (peso < 0 && peso >= -0.01)
+            {
+                peso = 0.0;
+            }
+
+            // Nao envia leituras negativas
+            if (peso < 0)
+            {
+                Serial.println("Peso negativo. Verifique a calibracao.");
+                return;
+            }
+
+            Serial.print("Peso: ");
+            Serial.print(peso, 3);
+            Serial.println(" kg");
+
+            enviarPeso(peso);
+        }
+        else
+        {
+            Serial.println("HX711 nao esta pronto!");
+        }
     }
-
-    ultima_leitura = millis();
-
-    if (!balanca.is_ready())
-    {
-        Serial.println("HX711 nao esta pronto.");
-        return;
-    }
-
-    float pesoAtual =
-        balanca.read_average(num_leituras) / fator_calibracao;
-
-    if (pesoAtual < peso_minimo)
-    {
-        pesoAtual = 0.0;
-    }
-
-    Serial.print("Peso atual: ");
-    Serial.print(pesoAtual, 3);
-    Serial.println(" kg");
-
-    enviarLeitura(pesoAtual);
 }
