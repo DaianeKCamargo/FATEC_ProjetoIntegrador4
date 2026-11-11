@@ -8,7 +8,9 @@ export default function SucessoDoacaoScreen() {
     peso: string;
   }>();
 
-  const pesoFormatado = (peso ?? '0.75').replace('.', ',');
+  const pesoFormatado = Number(peso ?? 0)
+    .toFixed(3)
+    .replace('.', ',');
 
   return (
     <SafeAreaView
