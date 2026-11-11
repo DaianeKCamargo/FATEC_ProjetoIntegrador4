@@ -1,4 +1,3 @@
-
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
 if (!API_URL) {
@@ -6,7 +5,11 @@ if (!API_URL) {
 }
 
 export async function apiFetch<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_URL}${endpoint}`);
+  const url = `${API_URL.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
+
+  console.log('URL da requisição:', url);
+
+  const response = await fetch(url);
 
   if (!response.ok) {
     throw new Error(`Erro na API: ${response.status}`);
