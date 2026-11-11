@@ -1,8 +1,10 @@
-const API_URL = process.env.EXPO_PUBLIC_API_URL;
+const apiUrl = process.env.EXPO_PUBLIC_API_URL;
 
-if (!API_URL) {
+if (!apiUrl) {
   throw new Error('EXPO_PUBLIC_API_URL não foi configurada.');
 }
+
+const API_URL: string = apiUrl;
 
 export async function apiFetch<T>(endpoint: string): Promise<T> {
   const url = `${API_URL.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;

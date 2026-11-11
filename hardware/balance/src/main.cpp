@@ -4,6 +4,7 @@
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include "HX711.h"
+#include "secrets.h"
 
 // ------------------------------
 // CONFIGURACOES DA BALANCA
@@ -19,9 +20,8 @@ float fator_calibracao = 300743.0;
 // ------------------------------
 // CONFIGURACOES DO WIFI
 // ------------------------------
-
-const char *ssid = "Desktop_F7665003";
-const char *senha = "CamarG0291";
+const char *ssid = WIFI_SSID;
+const char *senha = WIFI_PASSWORD;
 
 // ------------------------------
 // CONFIGURACOES DO SERVIDOR
