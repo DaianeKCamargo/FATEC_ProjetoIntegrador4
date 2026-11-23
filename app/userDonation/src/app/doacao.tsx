@@ -24,7 +24,6 @@ type LeituraWebSocket = {
   tipo: string;
   pontoId: string;
   peso: number;
-  atualizadoEm?: string;
 };
 
 async function salvarDoacao(pontoId: string, peso: number) {
@@ -62,11 +61,8 @@ export default function DoacaoScreen() {
 
   const [status, setStatus] = useState<Status>('idle');
   const [peso, setPeso] = useState(0);
-  const [quantidade, setQuantidade] = useState(0);
-  const [temLeitura, setTemLeitura] = useState(false);
   const [erro, setErro] = useState('');
   const [confirmando, setConfirmando] = useState(false);
-  const [tara, setTara] = useState(0);
   const [taraCapturada, setTaraCapturada] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
@@ -195,10 +191,7 @@ export default function DoacaoScreen() {
 
           const pesoBruto = leitura.peso;
 
-          // 1. Ainda não temos uma tara capturada.
           if (taraRef.current === null) {
-
-            // Armazena as últimas cinco leituras.
             const leituras = [
               ...leiturasTaraRef.current,
               pesoBruto,
@@ -206,7 +199,6 @@ export default function DoacaoScreen() {
 
             leiturasTaraRef.current = leituras;
 
-            // Precisamos de cinco leituras antes de avaliar.
             if (leituras.length < 5) {
               console.log(
                 '[TARA] Aguardando estabilidade:',
@@ -217,25 +209,19 @@ export default function DoacaoScreen() {
               return;
             }
 
-            // Identifica a maior e a menor leitura.
             const menorPeso = Math.min(...leituras);
             const maiorPeso = Math.max(...leituras);
 
             const variacao = maiorPeso - menorPeso;
 
-            // Aceita uma variação máxima de 5 gramas.
             if (variacao <= 0.005) {
-
-              // Calcula a média das cinco leituras.
               const taraCalculada =
                 leituras.reduce((total, valor) => total + valor, 0) /
                 leituras.length;
 
               taraRef.current = taraCalculada;
 
-              setTara(taraCalculada);
               setTaraCapturada(true);
-
               setErro('');
 
               console.log(
@@ -243,7 +229,6 @@ export default function DoacaoScreen() {
                 taraCalculada,
                 'kg'
               );
-
             } else {
               console.log(
                 '[TARA] Peso ainda instável. Variação:',
@@ -255,22 +240,13 @@ export default function DoacaoScreen() {
             return;
           }
 
-          // 2. Tara já capturada: calcula o peso líquido.
           const pesoLiquido = Math.max(
             0,
             pesoBruto - taraRef.current
           );
 
-          // 3. Calcula a quantidade estimada de tampinhas.
-          const quantidadeAtual = Math.round(
-            (pesoLiquido * 1000) / 2
-          );
-
           setPeso(pesoLiquido);
-          setQuantidade(quantidadeAtual);
-          setTemLeitura(true);
 
-          // Só permite confirmar quando houver peso líquido.
           setStatus(pesoLiquido > 0 ? 'ready' : 'waiting');
 
           setErro('');
@@ -342,13 +318,7 @@ export default function DoacaoScreen() {
     }
 
     setErro('');
-
     setPeso(0);
-    setQuantidade(0);
-    setTemLeitura(false);
-
-    // Reinicia a tara da nova doação.
-    setTara(0);
     setTaraCapturada(false);
 
     taraRef.current = null;
@@ -388,7 +358,6 @@ export default function DoacaoScreen() {
       );
 
       setPeso(pesoConfirmado);
-      setQuantidade(quantidadeConfirmada);
       setStatus('finished');
 
       router.replace({
@@ -430,13 +399,13 @@ export default function DoacaoScreen() {
 
   const endereco = ponto
     ? [
-      `${ponto.address.street}, ${ponto.address.number}`,
-      ponto.address.complement,
-      ponto.address.district,
-      ponto.address.city,
-    ]
-      .filter(Boolean)
-      .join(' • ')
+        `${ponto.address.street}, ${ponto.address.number}`,
+        ponto.address.complement,
+        ponto.address.district,
+        ponto.address.city,
+      ]
+        .filter(Boolean)
+        .join(' • ')
     : '';
 
   const enderecoCompleto = ponto
@@ -578,27 +547,19 @@ export default function DoacaoScreen() {
             quilogramas
           </Text>
 
-          {temLeitura && (
-            <Text
-              accessibilityLiveRegion="polite"
-              className="mt-3 text-center text-[15px] font-bold text-white"
-            >
-              Aproximadamente {quantidade} tampinhas
-            </Text>
-          )}
-
           <View
             accessibilityRole="summary"
             accessibilityLiveRegion="polite"
             className={`mt-5 flex-row items-center gap-2 rounded-full px-4 py-2 ${corStatus}`}
           >
             <View
-              className={`h-2.5 w-2.5 rounded-full ${status === 'idle'
-                ? 'bg-[#946400]'
-                : status === 'finished'
-                  ? 'bg-[#594080]'
-                  : 'bg-[#315B9A]'
-                }`}
+              className={`h-2.5 w-2.5 rounded-full ${
+                status === 'idle'
+                  ? 'bg-[#946400]'
+                  : status === 'finished'
+                    ? 'bg-[#594080]'
+                    : 'bg-[#315B9A]'
+              }`}
             />
 
             <Text className={`text-xs font-bold ${corTextoStatus}`}>
@@ -627,10 +588,11 @@ export default function DoacaoScreen() {
             accessibilityState={{
               disabled: !pontoId || !ponto || carregandoPonto,
             }}
-            className={`mt-[22px] min-h-[54px] items-center justify-center rounded-[14px] px-4 py-4 ${!pontoId || !ponto || carregandoPonto
-              ? 'bg-[#8297B8]'
-              : 'bg-[#315B9A] active:bg-[#254775]'
-              }`}
+            className={`mt-[22px] min-h-[54px] items-center justify-center rounded-[14px] px-4 py-4 ${
+              !pontoId || !ponto || carregandoPonto
+                ? 'bg-[#8297B8]'
+                : 'bg-[#315B9A] active:bg-[#254775]'
+            }`}
             onPress={iniciarPesagem}
             disabled={!pontoId || !ponto || carregandoPonto}
           >
@@ -667,10 +629,11 @@ export default function DoacaoScreen() {
               disabled: confirmando,
               busy: confirmando,
             }}
-            className={`mt-[22px] min-h-[54px] flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${confirmando
-              ? 'bg-[#8297B8]'
-              : 'bg-[#315B9A] active:bg-[#254775]'
-              }`}
+            className={`mt-[22px] min-h-[54px] flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${
+              confirmando
+                ? 'bg-[#8297B8]'
+                : 'bg-[#315B9A] active:bg-[#254775]'
+            }`}
             onPress={confirmarDoacao}
             disabled={confirmando}
           >
@@ -686,15 +649,6 @@ export default function DoacaoScreen() {
           </Pressable>
         )}
 
-        {/* Orientação */}
-        <View className="mt-5 rounded-xl border border-[#D9E2F1] bg-[#E9EFF9] p-4 dark:border-[#37445B] dark:bg-[#1F2937]">
-          <Text className="text-center text-xs leading-[19px] text-[#354966] dark:text-[#D0DBEE]">
-            O peso é atualizado pela balança. A quantidade de
-            tampinhas é uma estimativa baseada em 2 g por unidade.
-            A doação só é registrada após a confirmação.
-          </Text>
-        </View>
-
         {/* Retorno ao ponto */}
         <Pressable
           accessibilityRole="button"
@@ -703,7 +657,7 @@ export default function DoacaoScreen() {
           onPress={voltarAoPonto}
         >
           <Text className="text-sm font-bold text-[#315B9A] dark:text-[#A9C7FF]">
-            Voltar ao ponto de coleta
+            Voltar
           </Text>
         </Pressable>
       </ScrollView>
