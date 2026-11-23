@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   Text,
@@ -89,6 +90,75 @@ function MessageScreen({
         </Text>
       </View>
     </SafeAreaView>
+  );
+}
+
+// Barra de progresso das três etapas.
+function ProgressBar() {
+  const currentStep = 1;
+
+  const progressSteps = [
+    { number: 1, title: 'Instrução' },
+    { number: 2, title: 'Doação' },
+    { number: 3, title: 'Confirmação' },
+  ];
+
+  return (
+    <View className="mt-6 rounded-[22px] border border-[#EBD2C3] bg-white px-4 py-5 dark:border-[#49362E] dark:bg-[#29211D]">
+      <View className="flex-row items-center">
+        {progressSteps.map((step, index) => {
+          const active = step.number === currentStep;
+          const completed = step.number < currentStep;
+
+          return (
+            <View
+              key={step.number}
+              className="flex-1 flex-row items-center"
+            >
+              <View className="items-center">
+                <View
+                  className={`h-9 w-9 items-center justify-center rounded-full border-2 ${
+                    active || completed
+                      ? 'border-[#A96549] bg-[#A96549] dark:border-[#B98267] dark:bg-[#80513D]'
+                      : 'border-[#EBD9CE] bg-[#F8E8DE] dark:border-[#604438] dark:bg-[#382820]'
+                  }`}
+                >
+                  <Text
+                    className={`text-[13px] font-extrabold ${
+                      active || completed
+                        ? 'text-white'
+                        : 'text-[#A68B7D] dark:text-[#A98C7D]'
+                    }`}
+                  >
+                    {step.number}
+                  </Text>
+                </View>
+
+                <Text
+                  className={`mt-2 text-center text-[11px] ${
+                    active
+                      ? 'font-extrabold text-[#965239] dark:text-[#E9B69C]'
+                      : 'font-semibold text-[#A68B7D] dark:text-[#A98C7D]'
+                  }`}
+                >
+                  {step.title}
+                </Text>
+              </View>
+
+              {index < progressSteps.length - 1 && (
+                <View
+                  className={`mx-1 mb-5 h-[3px] flex-1 rounded-full ${
+                    completed
+                      ? 'bg-[#A96549]'
+                      : 'bg-[#EBD9CE] dark:bg-[#604438]'
+                  }`}
+                />
+              )}
+            </View>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -182,16 +252,25 @@ export default function PontoScreen() {
       >
         {/* Cabeçalho do ponto */}
         <View className="rounded-[28px] border border-[#98543B] bg-[#A96549] p-6 shadow-[0px_14px_30px_rgba(139,77,52,0.14)] dark:border-[#A8755D] dark:bg-[#59392C] dark:shadow-none">
-          <View className="mb-7 flex-row items-center justify-between">
-            <Text className="text-[15px] font-extrabold tracking-[1px] text-[#FFF0E7]">
-              TAMPETS
-            </Text>
-
+          <View className="mb-6 flex-row items-center justify-between">
+            {/* Identificação da página */}
             <View className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5">
               <Text className="text-[10px] font-bold tracking-[1.5px] text-white">
                 DOAÇÃO
               </Text>
             </View>
+
+            {/* Logo */}
+            <Image
+              source={require('../../../assets/images/logo.png')}
+              style={{
+                width: 132,
+                height: 48,
+                opacity: 0.75,
+              }}
+              resizeMode="contain"
+              accessibilityLabel="Logo Tampets"
+            />
           </View>
 
           <Text className="text-[11px] font-bold tracking-[1.8px] text-[#F8DED0]">
@@ -208,11 +287,15 @@ export default function PontoScreen() {
 
           <View className="mt-[18px] flex-row items-center gap-[7px] self-start rounded-full border border-white/20 bg-white/10 px-3 py-2">
             <View className="h-2 w-2 rounded-full bg-[#C9E5B7]" />
+
             <Text className="text-xs font-bold text-white">
               Ponto ativo
             </Text>
           </View>
         </View>
+
+        {/* Barra de progresso */}
+        <ProgressBar />
 
         {/* Horários de funcionamento */}
         <View className="mt-[22px] rounded-[22px] border border-[#EBD2C3] bg-[#F8E8DE] p-5 dark:border-[#604438] dark:bg-[#382820]">
