@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,11 @@ import {
   Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  listarAdministradores,
+  cadastrarAdministrador,
+  editarAdministrador,
+} from "@/services/adminService";
 
 type Admin = {
   idAdmin: number;
@@ -28,18 +33,30 @@ export default function Credentials() {
   const [emailUser, setEmailUser] = useState("");
   const [senha, setSenha] = useState("");
 
-  const [administradores, setAdministradores] = useState<Admin[]>([
-    {
-      idAdmin: 1,
-      username: "admin.exemplo",
-      emailUser: "admin@exemplo.com",
-    },
-    {
-      idAdmin: 2,
-      username: "usuario.exemplo",
-      emailUser: "usuario@exemplo.com",
-    },
-  ]);
+  const [administradores, setAdministradores] = useState<Admin[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [salvando, setSalvando] = useState(false);
+
+  async function carregarAdministradores() {
+    try {
+      setCarregando(true);
+
+      const dados = await listarAdministradores();
+
+      setAdministradores(dados);
+    } catch (erro: any) {
+      Alert.alert(
+        "Erro",
+        erro.message || "Não foi possível carregar os administradores."
+      );
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarAdministradores();
+  }, []);
 
   const filtrados = administradores.filter((admin) => {
     const termo = busca.trim().toLowerCase();
@@ -67,67 +84,82 @@ export default function Credentials() {
   }
 
   function fecharModal() {
+    if (salvando) return;
+
     setModalVisible(false);
+    setEditando(null);
+    setUsername("");
+    setEmailUser("");
     setSenha("");
   }
 
-  function salvar() {
-    const usuario = username.trim();
-    const email = emailUser.trim();
+  async function salvar() {
+    if (salvando) return;
 
-    if (!usuario || !email) {
-      Alert.alert("Atenção", "Preencha o usuário e o e-mail.");
-      return;
-    }
-
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      Alert.alert("Atenção", "Informe um e-mail válido.");
+    if (!username.trim() || !emailUser.trim()) {
+      Alert.alert("Atenção", "Preencha o nome de usuário e o e-mail.");
       return;
     }
 
     if (!editando && !senha.trim()) {
-      Alert.alert("Atenção", "Informe uma senha.");
+      Alert.alert("Atenção", "Informe uma senha para o administrador.");
       return;
     }
 
-    const usuarioExistente = administradores.some(
+    const duplicado = administradores.some(
       (admin) =>
-        admin.username.toLowerCase() === usuario.toLowerCase() &&
+        admin.username.toLowerCase() === username.trim().toLowerCase() &&
         admin.idAdmin !== editando?.idAdmin
     );
 
-    if (usuarioExistente) {
-      Alert.alert("Atenção", "Esse nome de usuário já existe.");
+    if (duplicado) {
+      Alert.alert("Atenção", "Esse nome de usuário já está cadastrado.");
       return;
     }
 
-    if (editando) {
-      setAdministradores((atual) =>
-        atual.map((admin) =>
-          admin.idAdmin === editando.idAdmin
-            ? { ...admin, username: usuario, emailUser: email }
-            : admin
-        )
+    try {
+      setSalvando(true);
+
+      if (editando) {
+        await editarAdministrador(editando.idAdmin, {
+          username: username.trim(),
+          emailUser: emailUser.trim(),
+        });
+
+        await carregarAdministradores();
+
+        Alert.alert(
+          "Sucesso",
+          "Administrador atualizado no banco de dados!"
+        );
+      } else {
+        await cadastrarAdministrador({
+          username: username.trim(),
+          emailUser: emailUser.trim(),
+          senha: senha.trim(),
+        });
+
+        await carregarAdministradores();
+
+        Alert.alert(
+          "Sucesso",
+          "Administrador cadastrado no banco de dados!"
+        );
+      }
+
+      setModalVisible(false);
+      setEditando(null);
+      setUsername("");
+      setEmailUser("");
+      setSenha("");
+    } catch (erro: any) {
+      Alert.alert(
+        "Erro",
+        erro.message || "Não foi possível salvar o administrador."
       );
-    } else {
-      setAdministradores((atual) => [
-        ...atual,
-        {
-          idAdmin: Math.max(0, ...atual.map((a) => a.idAdmin)) + 1,
-          username: usuario,
-          emailUser: email,
-        },
-      ]);
+    } finally {
+      setSalvando(false);
     }
-
-    fecharModal();
-
-    Alert.alert(
-      "Sucesso",
-      editando
-        ? "Administrador atualizado na demonstração!"
-        : "Administrador cadastrado na demonstração!"
-    );
   }
 
   return (
@@ -160,11 +192,7 @@ export default function Credentials() {
 
         {/* Busca */}
         <View className="mb-6 flex-row items-center rounded-2xl border border-slate-200 bg-white px-4">
-          <Ionicons
-            name="search-outline"
-            size={21}
-            color="#64748B"
-          />
+          <Ionicons name="search-outline" size={21} color="#64748B" />
 
           <TextInput
             className="ml-3 flex-1 py-4 text-base text-slate-800"
@@ -189,62 +217,62 @@ export default function Credentials() {
           </View>
         </View>
 
-        {/* Lista */}
-        {filtrados.map((admin) => (
-          <View
-            key={admin.idAdmin}
-            className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white p-4"
-          >
-            <View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-              <Text className="text-xl font-bold text-purple-700">
-                {admin.username.charAt(0).toUpperCase()}
-              </Text>
-            </View>
-
-            <View className="min-w-0 flex-1">
-              <Text
-                className="text-base font-bold text-slate-800"
-                numberOfLines={1}
-              >
-                {admin.username}
-              </Text>
-
-              <Text
-                className="mt-1 text-xs text-slate-500"
-                numberOfLines={1}
-              >
-                {admin.emailUser}
-              </Text>
-            </View>
-
-            <TouchableOpacity
-              className="ml-3 rounded-xl bg-purple-50 p-3"
-              onPress={() => abrirEdicao(admin)}
-              accessibilityRole="button"
-              accessibilityLabel={`Editar ${admin.username}`}
+        {/* Lista de administradores */}
+        {!carregando &&
+          filtrados.map((admin) => (
+            <View
+              key={admin.idAdmin}
+              className="mb-3 flex-row items-center rounded-2xl border border-slate-200 bg-white p-4"
             >
-              <Ionicons
-                name="create-outline"
-                size={22}
-                color="#8754BF"
-              />
-            </TouchableOpacity>
-          </View>
-        ))}
+              <View className="mr-3 h-12 w-12 items-center justify-center rounded-full bg-purple-100">
+                <Text className="text-xl font-bold text-purple-700">
+                  {admin.username.charAt(0).toUpperCase()}
+                </Text>
+              </View>
 
-        {filtrados.length === 0 && (
+              <View className="min-w-0 flex-1">
+                <Text
+                  className="text-base font-bold text-slate-800"
+                  numberOfLines={1}
+                >
+                  {admin.username}
+                </Text>
+
+                <Text
+                  className="mt-1 text-xs text-slate-500"
+                  numberOfLines={1}
+                >
+                  {admin.emailUser}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                className="ml-3 rounded-xl bg-purple-50 p-3"
+                onPress={() => abrirEdicao(admin)}
+                accessibilityRole="button"
+                accessibilityLabel={`Editar ${admin.username}`}
+              >
+                <Ionicons name="create-outline" size={22} color="#8754BF" />
+              </TouchableOpacity>
+            </View>
+          ))}
+
+        {/* Carregamento ou lista vazia */}
+        {carregando ? (
           <View className="items-center rounded-2xl border border-slate-200 bg-white px-5 py-10">
-            <Ionicons
-              name="search-outline"
-              size={40}
-              color="#94A3B8"
-            />
+            <Text className="text-slate-500">
+              Carregando administradores...
+            </Text>
+          </View>
+        ) : filtrados.length === 0 ? (
+          <View className="items-center rounded-2xl border border-slate-200 bg-white px-5 py-10">
+            <Ionicons name="search-outline" size={40} color="#94A3B8" />
 
             <Text className="mt-3 text-center text-slate-500">
               Nenhum administrador encontrado.
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Novo administrador */}
         <TouchableOpacity
@@ -252,21 +280,12 @@ export default function Credentials() {
           onPress={abrirCadastro}
           accessibilityRole="button"
         >
-          <Ionicons
-            name="person-add-outline"
-            size={22}
-            color="#FFFFFF"
-          />
+          <Ionicons name="person-add-outline" size={22} color="#FFFFFF" />
 
           <Text className="ml-3 text-base font-bold text-white">
             Novo administrador
           </Text>
         </TouchableOpacity>
-
-        <Text className="mt-5 text-center text-xs leading-5 text-slate-400">
-          Modo demonstração: os dados ainda não estão
-          conectados ao banco.
-        </Text>
       </ScrollView>
 
       {/* Modal de cadastro e edição */}
@@ -287,23 +306,19 @@ export default function Credentials() {
             <View className="rounded-3xl bg-white p-6">
               <View className="mb-6 flex-row items-center justify-between">
                 <Text className="flex-1 text-xl font-extrabold text-[#2D4F83]">
-                  {editando
-                    ? "Editar administrador"
-                    : "Novo administrador"}
+                  {editando ? "Editar administrador" : "Novo administrador"}
                 </Text>
 
                 <TouchableOpacity
                   onPress={fecharModal}
+                  disabled={salvando}
                   accessibilityLabel="Fechar formulário"
                 >
-                  <Ionicons
-                    name="close-outline"
-                    size={27}
-                    color="#64748B"
-                  />
+                  <Ionicons name="close-outline" size={27} color="#64748B" />
                 </TouchableOpacity>
               </View>
 
+              {/* Nome de usuário */}
               <Text className="mb-2 font-semibold text-slate-700">
                 Nome de usuário
               </Text>
@@ -317,9 +332,8 @@ export default function Credentials() {
                 autoCorrect={false}
               />
 
-              <Text className="mb-2 font-semibold text-slate-700">
-                E-mail
-              </Text>
+              {/* E-mail */}
+              <Text className="mb-2 font-semibold text-slate-700">E-mail</Text>
 
               <TextInput
                 className="mb-4 rounded-xl border border-slate-300 px-4 py-3 text-base text-slate-800"
@@ -331,6 +345,7 @@ export default function Credentials() {
                 autoCorrect={false}
               />
 
+              {/* Senha - somente no cadastro */}
               {!editando && (
                 <>
                   <Text className="mb-2 font-semibold text-slate-700">
@@ -348,25 +363,31 @@ export default function Credentials() {
                 </>
               )}
 
+              {/* Salvar */}
               <TouchableOpacity
-                className="mt-3 items-center rounded-xl bg-[#8754BF] py-4"
+                className={`mt-3 items-center rounded-xl bg-[#8754BF] py-4 ${
+                  salvando ? "opacity-60" : ""
+                }`}
                 onPress={salvar}
+                disabled={salvando}
                 accessibilityRole="button"
               >
                 <Text className="text-base font-bold text-white">
-                  {editando
+                  {salvando
+                    ? "Salvando..."
+                    : editando
                     ? "Salvar alterações"
                     : "Cadastrar administrador"}
                 </Text>
               </TouchableOpacity>
 
+              {/* Cancelar */}
               <TouchableOpacity
                 className="mt-3 items-center py-3"
                 onPress={fecharModal}
+                disabled={salvando}
               >
-                <Text className="font-semibold text-slate-500">
-                  Cancelar
-                </Text>
+                <Text className="font-semibold text-slate-500">Cancelar</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
