@@ -73,6 +73,20 @@ export default function TabsLayout() {
           ),
         }}
       />
+
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Configurações",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="settings-outline"
+              size={size}
+              color={typeof color === "string" ? color : "#8754BF"}
+            />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

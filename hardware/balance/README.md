@@ -34,13 +34,13 @@ O projeto utiliza o PlatformIO com:
 - Placa `esp32doit-devkit-v1`;
 - Framework Arduino;
 - Plataforma `espressif32`;
-- Biblioteca `bogde/HX711`.
+- Bibliotecas `bogde/HX711` e `bblanchon/ArduinoJson`.
 
 ## COMO RODAR O PROJETO
 
 1. Instale o Visual Studio Code e a extensao PlatformIO IDE.
 2. Clone o repositorio e abra a pasta `Balanca` no Visual Studio Code.
-3. Aguarde o PlatformIO instalar automaticamente a plataforma ESP32 e a biblioteca `bogde/HX711`.
+3. Aguarde o PlatformIO instalar automaticamente a plataforma ESP32 e as bibliotecas do projeto.
 4. Conecte o ESP32 ao computador usando um cabo USB.
 5. Compile o projeto pelo PlatformIO ou execute no terminal:
 
@@ -59,6 +59,21 @@ O projeto utiliza o PlatformIO com:
 	```bash
 	pio device monitor --baud 115200
 	```
+
+## CONFIGURACAO PELO APP ADMINISTRATIVO
+
+1. Grave o firmware atualizado no ESP32. No primeiro uso, ou se faltar zero/calibragem, ele inicia a rede Wi-Fi `TamPets-Config-<final do MAC>`.
+2. Conecte o celular à rede `TamPets-Config` da balança. Se o celular avisar que não há internet, mantenha a conexão e abra **Configurações** no app administrativo.
+3. Selecione o ponto de coleta. Com a plataforma vazia, toque em **Zerar balança sem peso**.
+4. Com a plataforma vazia, toque em zerar; o ESP32 aguarda 3 segundos e registra o offset com `tare(20)`. Coloque um peso conhecido, informe o valor em quilogramas e toque em **Calibrar com peso de referência**. O firmware aguarda 1 minuto para o peso estabilizar, coleta dez medias com `get_value(10)` (que ja desconta a tara) e calcula `fator = leitura bruta / peso conhecido em kg`. Ele confere novas leituras com `get_units(5)` e só salva o fator se a oscilacao e a diferenca ficarem dentro dos limites. A tela mostra o peso verificado e o fator interno em contagens/kg; o fator nao e o peso e pode ter sinal negativo conforme a polaridade da celula de carga.
+5. Informe o nome e a senha da rede Wi-Fi do local (2,4 GHz) e envie a configuração. O ESP32 salva o Wi-Fi e o ID do ponto e reinicia. A mensagem do app confirma que os dados foram salvos, não que a conexão foi concluída.
+6. Para calibrar ou configurar novamente, mantenha o ESP32 ligado e segure o botão **BOOT** por 5 segundos; conecte o celular à rede `TamPets-Config` que aparecer e repita o processo.
+
+A rede de configuração é aberta e fica ativa enquanto faltar configuração ou após a ativação física pelo botão BOOT. A senha da rede do local é enviada diretamente ao ESP32 e não é armazenada no banco de dados. O offset de zero e o fator são preservados na memória do ESP32, inclusive após reinicializações.
+
+No monitor serial, `Estado do Wi-Fi: conectado` confirma a conexão. `rede nao encontrada` indica que o SSID não foi localizado; `falha de conexao` indica que a rede ou senha deve ser conferida. O ESP32 envia as leituras ao servidor somente quando conectado ao Wi-Fi.
+
+Com a plataforma vazia, leituras abaixo de zero sao enviadas como `0.000 kg`, para que a interface continue mostrando zero em vez de manter um valor antigo.
 
 Para executar a simulacao, instale a extensao Wokwi for VS Code, abra o arquivo `diagram.json` no Visual Studio Code e inicie a simulacao pela extensao. O monitor serial do Wokwi exibira as mensagens do programa. Antes de iniciar, compile o projeto com `pio run` para gerar os arquivos necessarios.
 
@@ -88,12 +103,7 @@ Na funcao `setup()`:
 
 Na funcao `loop()`, o programa verifica se o HX711 esta pronto usando `balanca.is_ready()`.
 
-Quando o modulo esta pronto, sao realizadas cinco leituras. Cada leitura bruta e dividida pelo fator de calibracao `419.5` e o resultado e exibido em quilogramas:
-
-```cpp
-const float fator_calibracao = 419.5;
-const int num_leituras = 5;
-```
+Quando o modulo esta pronto e a balanca foi calibrada pelo app, sao realizadas cinco leituras. Cada leitura bruta e dividida pelo fator salvo na memoria do ESP32 e o resultado e exibido em quilogramas. Sem zero ou calibragem, o programa nao envia leituras.
 
 Existe um intervalo de um segundo entre cada leitura.
 
@@ -142,7 +152,7 @@ HX711 nao esta pronto!
 
 ## CALIBRACAO
 
-O fator utilizado atualmente e `419.5`. Esse valor deve ser ajustado caso as leituras do peso real estejam diferentes das leituras exibidas pelo sistema. A calibracao deve ser feita utilizando um peso conhecido e comparando o valor medido com o valor esperado.
+A calibracao e feita pelo app administrativo com um peso conhecido. Primeiro, a plataforma deve estar vazia para salvar o offset de zero; em seguida, coloca-se o peso de referencia e informa-se seu valor em quilogramas. O ESP32 calcula e salva o fator, validando se as leituras estao estaveis. A tara e o fator permanecem salvos apos reinicializacoes.
 
 ## RESUMO DO FLUXO
 
