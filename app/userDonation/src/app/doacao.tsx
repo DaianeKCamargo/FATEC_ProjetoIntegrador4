@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import {
   ActivityIndicator,
+  Modal,
   Pressable,
   ScrollView,
   Text,
@@ -17,6 +18,7 @@ import { getCollectionPoint } from '@/services/collection-points';
 
 const API_URL = 'https://fatec-balanca.vercel.app';
 const WEBSOCKET_URL = 'wss://weight-websocket.onrender.com';
+const TEMPO_LIMITE_BALANCA_MS = 5000;
 
 type Status = 'idle' | 'waiting' | 'ready' | 'finished';
 
@@ -64,12 +66,16 @@ export default function DoacaoScreen() {
   const [erro, setErro] = useState('');
   const [confirmando, setConfirmando] = useState(false);
   const [taraCapturada, setTaraCapturada] = useState(false);
+  const [mostrarModalSemBalanca, setMostrarModalSemBalanca] = useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const conexaoAtivaRef = useRef(false);
   const confirmandoRef = useRef(false);
   const taraRef = useRef<number | null>(null);
   const leiturasTaraRef = useRef<number[]>([]);
+  const timeoutSemLeituraRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   useEffect(() => {
     let ativo = true;
@@ -115,7 +121,15 @@ export default function DoacaoScreen() {
     };
   }, [pontoId]);
 
+  function limparTimeoutSemLeitura() {
+    if (timeoutSemLeituraRef.current !== null) {
+      clearTimeout(timeoutSemLeituraRef.current);
+      timeoutSemLeituraRef.current = null;
+    }
+  }
+
   function fecharWebSocket() {
+    limparTimeoutSemLeitura();
     conexaoAtivaRef.current = false;
 
     const socket = socketRef.current;
@@ -163,6 +177,21 @@ export default function DoacaoScreen() {
 
         setErro('');
         setStatus('waiting');
+        timeoutSemLeituraRef.current = setTimeout(() => {
+          if (
+            !conexaoAtivaRef.current ||
+            socketRef.current !== socket
+          ) {
+            return;
+          }
+
+          console.warn(
+            '[WEBSOCKET] Nenhuma leitura recebida para o ponto:',
+            idPonto
+          );
+          fecharWebSocket();
+          setMostrarModalSemBalanca(true);
+        }, TEMPO_LIMITE_BALANCA_MS);
       };
 
       socket.onmessage = (evento) => {
@@ -188,6 +217,8 @@ export default function DoacaoScreen() {
             console.warn('[WEBSOCKET] Mensagem inválida:', leitura);
             return;
           }
+
+          limparTimeoutSemLeitura();
 
           const pesoBruto = leitura.peso;
 
@@ -318,6 +349,7 @@ export default function DoacaoScreen() {
     }
 
     setErro('');
+    setMostrarModalSemBalanca(false);
     setPeso(0);
     setTaraCapturada(false);
 
@@ -383,6 +415,7 @@ export default function DoacaoScreen() {
   }
 
   function voltarAoPonto() {
+    setMostrarModalSemBalanca(false);
     fecharWebSocket();
 
     if (pontoId) {
@@ -661,6 +694,35 @@ export default function DoacaoScreen() {
           </Text>
         </Pressable>
       </ScrollView>
+
+      <Modal
+        visible={mostrarModalSemBalanca}
+        transparent
+        animationType="fade"
+        onRequestClose={voltarAoPonto}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50 px-6">
+          <View
+            accessibilityViewIsModal
+            className="w-full max-w-[420px] rounded-3xl border border-[#E9BFC4] bg-[#FCEBED] p-6 dark:border-[#74414A] dark:bg-[#44272D]"
+          >
+            <Text className="text-center text-xl font-extrabold text-[#A12B35] dark:text-[#FFB7BE]">
+              Balança indisponível neste ponto
+            </Text>
+            <Text className="mt-3 text-center text-sm leading-5 text-[#7D2630] dark:text-[#FFD9DD]">
+              Nenhuma leitura chegou em 5 segundos. A balança pode não estar
+              cadastrada, ligada ou conectada ao Wi-Fi.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              className="mt-6 min-h-[50px] items-center justify-center rounded-xl bg-[#A12B35] px-4 py-3"
+              onPress={voltarAoPonto}
+            >
+              <Text className="font-bold text-white">Voltar ao ponto</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

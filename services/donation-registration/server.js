@@ -10,6 +10,7 @@ const app = express();
 // Configuração do CORS
 const origensPermitidas = [
   "http://localhost:8081",
+  "http://localhost:8082",
   "https://doetampinhas.vercel.app",
 ];
 
