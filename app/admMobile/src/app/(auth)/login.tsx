@@ -91,15 +91,18 @@ export default function Login() {
 
       <KeyboardAvoidingView
         style={styles.keyboardContainer}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={0}
       >
-        <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            isWideScreen && styles.scrollContentWide,
-          ]}
-          keyboardShouldPersistTaps="handled"
-        >
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          isWideScreen && styles.scrollContentWide,
+        ]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
           <View
             style={[
               styles.content,
