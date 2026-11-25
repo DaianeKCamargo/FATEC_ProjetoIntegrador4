@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-
 import { router, useLocalSearchParams } from 'expo-router';
-
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Pressable,
   ScrollView,
   Text,
   View,
 } from 'react-native';
-
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import type { CollectionPoint } from '@/constants/collection-points';
 import { getCollectionPoint } from '@/services/collection-points';
 
@@ -53,6 +50,75 @@ async function salvarDoacao(pontoId: string, peso: number) {
   }
 
   return texto ? JSON.parse(texto) : {};
+}
+
+function ProgressBar() {
+  return (
+    <View className="mb-5 w-full">
+      <View className="w-full rounded-[22px] border border-[#D9E2F1] bg-white px-4 py-4 dark:border-[#37445B] dark:bg-[#1F2937] sm:px-6 sm:py-5 md:px-8">
+        {/* Logo */}
+        <View className="mb-6 w-full items-center justify-center">
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={{
+              width: 185,
+              height: 68,
+            }}
+            resizeMode="contain"
+            accessibilityLabel="Logo Tampets"
+          />
+        </View>
+
+        {/* Etapas */}
+        <View className="w-full flex-row items-start">
+          {/* Instrução */}
+          <View className="flex-1 items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#315B9A]">
+              <Text className="text-sm font-bold text-white">1</Text>
+            </View>
+
+            <Text className="mt-2 text-center text-xs font-semibold text-[#315B9A] dark:text-[#A9C7FF]">
+              Instrução
+            </Text>
+          </View>
+
+          {/* Linha 1 */}
+          <View className="flex-1 pt-[17px]">
+            <View className="h-[2px] w-full bg-[#315B9A]" />
+          </View>
+
+          {/* Doação */}
+          <View className="flex-1 items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#315B9A]">
+              <Text className="text-sm font-bold text-white">2</Text>
+            </View>
+
+            <Text className="mt-2 text-center text-xs font-semibold text-[#315B9A] dark:text-[#A9C7FF]">
+              Doação
+            </Text>
+          </View>
+
+          {/* Linha 2 */}
+          <View className="flex-1 pt-[17px]">
+            <View className="h-[2px] w-full bg-[#D9E2F1] dark:bg-[#37445B]" />
+          </View>
+
+          {/* Confirmação */}
+          <View className="flex-1 items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#D9E2F1] dark:bg-[#37445B]">
+              <Text className="text-sm font-bold text-[#315B9A] dark:text-[#A9C7FF]">
+                3
+              </Text>
+            </View>
+
+            <Text className="mt-2 text-center text-xs font-semibold text-[#566783] dark:text-[#B7C5DC]">
+              Confirmação
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 export default function DoacaoScreen() {
@@ -185,6 +251,7 @@ export default function DoacaoScreen() {
 
         setErro('');
         setStatus('waiting');
+
         timeoutSemLeituraRef.current = setTimeout(() => {
           if (
             !conexaoAtivaRef.current ||
@@ -197,6 +264,7 @@ export default function DoacaoScreen() {
             '[WEBSOCKET] Nenhuma leitura recebida para o ponto:',
             idPonto
           );
+
           fecharWebSocket();
           setMostrarModalSemBalanca(true);
         }, TEMPO_LIMITE_BALANCA_MS);
@@ -461,8 +529,8 @@ export default function DoacaoScreen() {
         ponto.address.district,
         ponto.address.city,
       ]
-        .filter(Boolean)
-        .join(' • ')
+          .filter(Boolean)
+          .join(' • ')
     : '';
 
   const enderecoCompleto = ponto
@@ -502,9 +570,13 @@ export default function DoacaoScreen() {
   return (
     <SafeAreaView className="flex-1 bg-[#F3F6FC] dark:bg-[#111827]">
       <ScrollView
+        className="w-full flex-1"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="flex-grow px-6 pt-6 pb-8"
+        contentContainerClassName="w-full flex-grow px-2 pt-3 pb-8 sm:px-3 md:px-4"
       >
+        {/* Logo e barra de progresso */}
+        <ProgressBar />
+
         {/* Cabeçalho */}
         <Text
           accessibilityRole="header"
@@ -518,7 +590,7 @@ export default function DoacaoScreen() {
         </Text>
 
         {/* Ponto de coleta */}
-        <View className="rounded-[18px] border border-[#D9E2F1] bg-white p-5 dark:border-[#37445B] dark:bg-[#1F2937]">
+        <View className="w-full rounded-[18px] border border-[#D9E2F1] bg-white p-5 dark:border-[#37445B] dark:bg-[#1F2937]">
           <Text className="text-[11px] font-extrabold tracking-[1.3px] text-[#315B9A] dark:text-[#A9C7FF]">
             PONTO DE COLETA
           </Text>
@@ -587,7 +659,7 @@ export default function DoacaoScreen() {
         </View>
 
         {/* Área de pesagem */}
-        <View className="mt-5 items-center rounded-3xl bg-[#263B63] p-6 dark:bg-[#263B63]">
+        <View className="mt-5 w-full items-center rounded-3xl bg-[#263B63] p-6">
           <Text className="text-xs font-bold tracking-[1.5px] text-[#D9E5FF]">
             PESO DA DOAÇÃO
           </Text>
@@ -629,7 +701,7 @@ export default function DoacaoScreen() {
         {!!erro && (
           <View
             accessibilityRole="alert"
-            className="mt-4 rounded-xl border border-[#E9BFC4] bg-[#FCEBED] p-4 dark:border-[#74414A] dark:bg-[#44272D]"
+            className="mt-4 w-full rounded-xl border border-[#E9BFC4] bg-[#FCEBED] p-4 dark:border-[#74414A] dark:bg-[#44272D]"
           >
             <Text className="text-center text-sm font-medium leading-5 text-[#A12B35] dark:text-[#FFB7BE]">
               {erro}
@@ -637,45 +709,34 @@ export default function DoacaoScreen() {
           </View>
         )}
 
-        {/* Iniciar pesagem */}
-        {status === 'idle' && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Iniciar pesagem da doação"
-            accessibilityState={{
-              disabled: !pontoId || !ponto || carregandoPonto,
-            }}
-            className={`mt-[22px] min-h-[54px] items-center justify-center rounded-[14px] px-4 py-4 ${
-              !pontoId || !ponto || carregandoPonto
-                ? 'bg-[#8297B8]'
-                : 'bg-[#315B9A] active:bg-[#254775]'
-            }`}
-            onPress={iniciarPesagem}
-            disabled={!pontoId || !ponto || carregandoPonto}
-          >
-            <Text className="text-base font-bold text-white">
-              {carregandoPonto
-                ? 'Carregando ponto...'
-                : 'Iniciar pesagem'}
-            </Text>
-          </Pressable>
-        )}
-
-        {/* Aguardando leitura */}
-        {status === 'waiting' && (
-          <View
-            accessibilityLiveRegion="polite"
-            className="mt-[22px] min-h-[54px] flex-row items-center justify-center gap-3 rounded-[14px] bg-[#DCE8F8] px-4 py-4 dark:bg-[#263B63]"
-          >
-            <ActivityIndicator color="#244A80" />
-
-            <Text className="text-base font-bold text-[#244A80] dark:text-[#D9E5FF]">
-              {taraCapturada
-                ? 'Recipiente tarado. Adicione as tampinhas!'
-                : 'Estabilizando recipiente...'}
-            </Text>
-          </View>
-        )}
+        {/* Botão iniciar pesagem */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Iniciar pesagem da doação"
+          accessibilityState={{
+            disabled:
+              status !== 'idle' ||
+              !pontoId ||
+              !ponto ||
+              carregandoPonto,
+          }}
+          className={`mt-[22px] min-h-[54px] w-full items-center justify-center rounded-[14px] px-4 py-4 ${
+            status !== 'idle' || !pontoId || !ponto || carregandoPonto
+              ? 'bg-[#8297B8] opacity-70'
+              : 'bg-[#315B9A] active:bg-[#254775]'
+          }`}
+          onPress={iniciarPesagem}
+          disabled={
+            status !== 'idle' ||
+            !pontoId ||
+            !ponto ||
+            carregandoPonto
+          }
+        >
+          <Text className="text-base font-bold text-white">
+            Iniciar pesagem
+          </Text>
+        </Pressable>
 
         {/* Confirmar doação */}
         {status === 'ready' && (
@@ -686,7 +747,7 @@ export default function DoacaoScreen() {
               disabled: confirmando,
               busy: confirmando,
             }}
-            className={`mt-[22px] min-h-[54px] flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${
+            className={`mt-[22px] min-h-[54px] w-full flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${
               confirmando
                 ? 'bg-[#8297B8]'
                 : 'bg-[#315B9A] active:bg-[#254775]'
@@ -710,7 +771,7 @@ export default function DoacaoScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Voltar aos detalhes do ponto de coleta"
-          className="mt-4 min-h-[48px] items-center justify-center rounded-xl py-3"
+          className="mt-4 min-h-[48px] w-full items-center justify-center rounded-xl py-3"
           onPress={voltarAoPonto}
         >
           <Text className="text-sm font-bold text-[#315B9A] dark:text-[#A9C7FF]">
@@ -719,6 +780,7 @@ export default function DoacaoScreen() {
         </Pressable>
       </ScrollView>
 
+      {/* Modal: balança indisponível */}
       <Modal
         visible={mostrarModalSemBalanca}
         transparent
@@ -733,21 +795,26 @@ export default function DoacaoScreen() {
             <Text className="text-center text-xl font-extrabold text-[#A12B35] dark:text-[#FFB7BE]">
               Balança indisponível neste ponto
             </Text>
+
             <Text className="mt-3 text-center text-sm leading-5 text-[#7D2630] dark:text-[#FFD9DD]">
               Nenhuma leitura chegou em 5 segundos. A balança pode não estar
               cadastrada, ligada ou conectada ao Wi-Fi.
             </Text>
+
             <Pressable
               accessibilityRole="button"
               className="mt-6 min-h-[50px] items-center justify-center rounded-xl bg-[#A12B35] px-4 py-3"
               onPress={voltarAoPonto}
             >
-              <Text className="font-bold text-white">Voltar ao ponto</Text>
+              <Text className="font-bold text-white">
+                Voltar ao ponto
+              </Text>
             </Pressable>
           </View>
         </View>
       </Modal>
 
+      {/* Modal: sessão ativa */}
       <Modal
         visible={mostrarModalSessaoAtiva}
         transparent
@@ -762,10 +829,12 @@ export default function DoacaoScreen() {
             <Text className="text-center text-xl font-extrabold text-[#8A4B08] dark:text-[#FFD18A]">
               Pesagem já em andamento
             </Text>
+
             <Text className="mt-3 text-center text-sm leading-5 text-[#74400A] dark:text-[#FFE2B8]">
               Outra pessoa já iniciou uma sessão de pesagem neste ponto. Aguarde
               a finalização da doação antes de tentar novamente.
             </Text>
+
             <Pressable
               accessibilityRole="button"
               className="mt-6 min-h-[50px] items-center justify-center rounded-xl bg-[#C56A12] px-4 py-3"

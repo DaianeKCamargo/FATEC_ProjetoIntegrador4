@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-
 import {
   ActivityIndicator,
   Image,
@@ -7,402 +6,387 @@ import {
   ScrollView,
   Text,
   View,
+  useColorScheme,
 } from 'react-native';
-
 import { router, useLocalSearchParams } from 'expo-router';
-
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { CollectionPoint } from '@/constants/collection-points';
 import { getCollectionPoint } from '@/services/collection-points';
 
-const steps = [
-  {
-    number: '01',
-    title: 'Separe as tampinhas',
-    description:
-      'Separe as tampinhas plásticas e retire resíduos ou sujeiras aparentes.',
-  },
-  {
-    number: '02',
-    title: 'Prepare a pesagem',
-    description:
-      'Coloque as tampinhas no recipiente indicado pelo responsável do ponto.',
-  },
-  {
-    number: '03',
-    title: 'Confira o peso',
-    description:
-      'Posicione o recipiente na balança e aguarde o valor estabilizar. Peça ajuda ao responsável se necessário.',
-  },
-  {
-    number: '04',
-    title: 'Entregue sua doação',
-    description:
-      'Informe o peso ao responsável pelo ponto e deixe as tampinhas no local indicado para reciclagem.',
-  },
-];
+function ProgressBar() {
+  return (
+    <View className="mb-5 w-full">
+      <View className="w-full rounded-[22px] border border-[#EBD2C3] bg-white px-4 py-4 dark:border-[#49362E] dark:bg-[#29211D] sm:px-6 sm:py-5 md:px-8">
+        {/* Logo */}
+        <View className="mb-6 w-full items-center justify-center">
+          <Image
+            source={require('../../../assets/images/logo.png')}
+            style={{
+              width: 185,
+              height: 68,
+            }}
+            resizeMode="contain"
+            accessibilityLabel="Logo Tampets"
+          />
+        </View>
 
-function formatAddress(ponto: CollectionPoint) {
-  const { street, number, complement, district, city } = ponto.address;
+        {/* Etapas */}
+        <View className="w-full flex-row items-start">
+          {/* Instrução */}
+          <View className="flex-1 items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#8B4B2B]">
+              <Text className="text-sm font-bold text-white">1</Text>
+            </View>
+            <Text className="mt-2 text-center text-xs font-semibold text-[#8B4B2B]">
+              Instrução
+            </Text>
+          </View>
 
-  return [
-    `${street}, ${number}`,
-    complement,
-    district,
-    city,
-  ]
-    .filter(Boolean)
-    .join(' • ');
+          {/* Linha */}
+          <View className="flex-1 pt-[17px]">
+            <View className="h-[2px] w-full bg-[#EBD2C3] dark:bg-[#49362E]" />
+          </View>
+
+          {/* Doação */}
+          <View className="flex-1 items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#EBD2C3] dark:bg-[#49362E]">
+              <Text className="text-sm font-bold text-[#8B4B2B] dark:text-[#D8B7A5]">
+                2
+              </Text>
+            </View>
+            <Text className="mt-2 text-center text-xs font-semibold text-[#927F75] dark:text-[#B6A49A]">
+              Doação
+            </Text>
+          </View>
+
+          {/* Linha */}
+          <View className="flex-1 pt-[17px]">
+            <View className="h-[2px] w-full bg-[#EBD2C3] dark:bg-[#49362E]" />
+          </View>
+
+          {/* Confirmação */}
+          <View className="flex-1 items-center">
+            <View className="h-9 w-9 items-center justify-center rounded-full bg-[#EBD2C3] dark:bg-[#49362E]">
+              <Text className="text-sm font-bold text-[#8B4B2B] dark:text-[#D8B7A5]">
+                3
+              </Text>
+            </View>
+            <Text className="mt-2 text-center text-xs font-semibold text-[#927F75] dark:text-[#B6A49A]">
+              Confirmação
+            </Text>
+          </View>
+        </View>
+      </View>
+    </View>
+  );
 }
 
 function MessageScreen({
   title,
   message,
   loading = false,
+  isDark,
+  onBack,
 }: {
   title: string;
   message: string;
   loading?: boolean;
+  isDark: boolean;
+  onBack: () => void;
 }) {
   return (
     <SafeAreaView
-      className="flex-1 bg-[#FCF7F3] dark:bg-[#1C1715]"
-      edges={['top']}
+      className={`flex-1 items-center justify-center px-4 ${
+        isDark ? 'bg-[#171311]' : 'bg-[#FFF9F5]'
+      }`}
     >
-      <View className="flex-1 items-center justify-center px-7">
-        <View className="mb-5 h-[84px] w-[84px] items-center justify-center rounded-full border border-[#EBD2C3] bg-[#F8E8DE] dark:border-[#604438] dark:bg-[#382820]">
-          {loading ? (
-            <ActivityIndicator size="large" color="#A65F43" />
-          ) : (
-            <Text className="text-[32px] font-bold text-[#A65F43]">
-              !
-            </Text>
-          )}
-        </View>
+      <View className="w-full rounded-3xl border border-[#EBD2C3] bg-white p-7 dark:border-[#49362E] dark:bg-[#29211D]">
+        {loading && (
+          <ActivityIndicator
+            size="large"
+            color={isDark ? '#E8B99F' : '#8B4B2B'}
+          />
+        )}
 
-        <Text className="text-center text-[25px] font-extrabold text-[#3D2922] dark:text-[#F8EDE7]">
+        <Text className="mt-4 text-center text-xl font-bold text-[#59331F] dark:text-[#F4E6DE]">
           {title}
         </Text>
 
-        <Text className="mt-3 text-center text-[15px] leading-[23px] text-[#72584D] dark:text-[#D2BFB5]">
+        <Text className="mt-2 text-center text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA]">
           {message}
         </Text>
+
+        {!loading && (
+          <Pressable
+            onPress={onBack}
+            className="mt-6 w-full items-center rounded-xl bg-[#8B4B2B] px-5 py-4"
+            accessibilityRole="button"
+          >
+            <Text className="font-bold text-white">Voltar</Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
 }
 
-// Barra de progresso das três etapas.
-function ProgressBar() {
-  const currentStep = 1;
-
-  const progressSteps = [
-    { number: 1, title: 'Instrução' },
-    { number: 2, title: 'Doação' },
-    { number: 3, title: 'Confirmação' },
-  ];
-
-  return (
-    <View className="mt-6 rounded-[22px] border border-[#EBD2C3] bg-white px-4 py-5 dark:border-[#49362E] dark:bg-[#29211D]">
-      <View className="flex-row items-center">
-        {progressSteps.map((step, index) => {
-          const active = step.number === currentStep;
-          const completed = step.number < currentStep;
-
-          return (
-            <View
-              key={step.number}
-              className="flex-1 flex-row items-center"
-            >
-              <View className="items-center">
-                <View
-                  className={`h-9 w-9 items-center justify-center rounded-full border-2 ${
-                    active || completed
-                      ? 'border-[#A96549] bg-[#A96549] dark:border-[#B98267] dark:bg-[#80513D]'
-                      : 'border-[#EBD9CE] bg-[#F8E8DE] dark:border-[#604438] dark:bg-[#382820]'
-                  }`}
-                >
-                  <Text
-                    className={`text-[13px] font-extrabold ${
-                      active || completed
-                        ? 'text-white'
-                        : 'text-[#A68B7D] dark:text-[#A98C7D]'
-                    }`}
-                  >
-                    {step.number}
-                  </Text>
-                </View>
-
-                <Text
-                  className={`mt-2 text-center text-[11px] ${
-                    active
-                      ? 'font-extrabold text-[#965239] dark:text-[#E9B69C]'
-                      : 'font-semibold text-[#A68B7D] dark:text-[#A98C7D]'
-                  }`}
-                >
-                  {step.title}
-                </Text>
-              </View>
-
-              {index < progressSteps.length - 1 && (
-                <View
-                  className={`mx-1 mb-5 h-[3px] flex-1 rounded-full ${
-                    completed
-                      ? 'bg-[#A96549]'
-                      : 'bg-[#EBD9CE] dark:bg-[#604438]'
-                  }`}
-                />
-              )}
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
 export default function PontoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-
-  const pontoId = Array.isArray(id) ? id[0] : id;
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const [ponto, setPonto] = useState<CollectionPoint | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
 
   useEffect(() => {
-    let active = true;
-
     async function carregarPonto() {
-      setLoading(true);
-      setError(false);
-      setPonto(null);
-
-      const numericId = Number(pontoId);
-
-      if (!pontoId || !Number.isInteger(numericId) || numericId <= 0) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const resultado = await getCollectionPoint(numericId);
+        setCarregando(true);
+        setErro(false);
 
-        if (active) {
-          setPonto(resultado);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar ponto:', err);
+        const pontoId = Number(id);
 
-        if (active) {
-          setError(true);
+        if (!Number.isInteger(pontoId) || pontoId <= 0) {
+          throw new Error('ID inválido');
         }
+
+        const resultado = await getCollectionPoint(pontoId);
+
+        if (resultado.status !== 'APROVADO') {
+          throw new Error('Ponto indisponível');
+        }
+
+        setPonto(resultado);
+      } catch (error) {
+        console.error('Erro ao carregar ponto:', error);
+        setErro(true);
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        setCarregando(false);
       }
     }
 
     carregarPonto();
+  }, [id]);
 
-    return () => {
-      active = false;
-    };
-  }, [pontoId]);
+  function iniciarDoacao() {
+    if (!ponto) return;
 
-  if (loading) {
+    router.push({
+      pathname: '/doacao',
+      params: {
+        pontoId: String(ponto.id),
+      },
+    });
+  }
+
+  function voltarInicio() {
+    router.replace('/(tabs)');
+  }
+
+  if (carregando) {
     return (
       <MessageScreen
-        title="Carregando ponto..."
-        message="Estamos buscando as informações do ponto de coleta."
+        title="Carregando ponto de coleta"
+        message="Estamos buscando as informações do ponto. Aguarde um instante."
         loading
+        isDark={isDark}
+        onBack={voltarInicio}
       />
     );
   }
 
-  if (error) {
-    return (
-      <MessageScreen
-        title="Não foi possível carregar"
-        message="Verifique sua conexão e tente acessar o ponto novamente."
-      />
-    );
-  }
-
-  if (!ponto || ponto.status !== 'APROVADO') {
+  if (erro || !ponto) {
     return (
       <MessageScreen
         title="Ponto não encontrado"
-        message="Confira o QR Code ou entre em contato com o responsável pelo ponto de coleta."
+        message="Não foi possível encontrar esse ponto de coleta. Verifique o QR Code ou tente novamente."
+        isDark={isDark}
+        onBack={voltarInicio}
       />
     );
   }
 
+  const endereco = ponto.address;
+
   return (
     <SafeAreaView
-      className="flex-1 bg-[#FCF7F3] dark:bg-[#1C1715]"
-      edges={['top']}
+      className={`flex-1 ${
+        isDark ? 'bg-[#171311]' : 'bg-[#FFF9F5]'
+      }`}
     >
       <ScrollView
-        className="flex-1"
-        contentContainerClassName="px-[22px] pb-9 pt-5"
+        className="w-full flex-1"
+        contentContainerClassName="w-full flex-grow px-2 pb-8 pt-3 sm:px-3 md:px-4"
         showsVerticalScrollIndicator={false}
       >
-        {/* Cabeçalho do ponto */}
-        <View className="rounded-[28px] border border-[#98543B] bg-[#A96549] p-6 shadow-[0px_14px_30px_rgba(139,77,52,0.14)] dark:border-[#A8755D] dark:bg-[#59392C] dark:shadow-none">
-          <View className="mb-6 flex-row items-center justify-between">
-            {/* Identificação da página */}
-            <View className="rounded-full border border-white/30 bg-white/10 px-3 py-1.5">
-              <Text className="text-[10px] font-bold tracking-[1.5px] text-white">
-                DOAÇÃO
+        <View className="w-full">
+          {/* Logo e progresso */}
+          <ProgressBar />
+
+          {/* Cabeçalho do ponto */}
+          <View className="mb-5 w-full rounded-[26px] bg-[#8B4B2B] p-5 sm:p-7 md:p-8">
+            <Text className="text-xs font-bold uppercase tracking-[2px] text-[#F4D9C8]">
+              PONTO DE COLETA
+            </Text>
+
+            <Text className="mt-3 text-2xl font-extrabold text-white sm:text-3xl md:text-4xl">
+              {ponto.name}
+            </Text>
+
+            <Text className="mt-2 text-sm leading-6 text-white sm:text-base">
+              {endereco.street}, {endereco.number}
+              {endereco.complement ? ` - ${endereco.complement}` : ''}
+              {' • '}
+              {endereco.district}
+              {' • '}
+              {endereco.city}
+            </Text>
+
+            <View className="mt-4 self-start rounded-full bg-[#F2DCCF] px-4 py-2">
+              <Text className="text-xs font-bold text-[#704027]">
+                Ponto aprovado
               </Text>
             </View>
-
-            {/* Logo */}
-            <Image
-              source={require('../../../assets/images/logo.png')}
-              style={{
-                width: 132,
-                height: 48,
-                opacity: 0.75,
-              }}
-              resizeMode="contain"
-              accessibilityLabel="Logo Tampets"
-            />
           </View>
 
-          <Text className="text-[11px] font-bold tracking-[1.8px] text-[#F8DED0]">
-            PONTO DE COLETA
-          </Text>
+          {/* Endereço */}
+          <View className="mb-5 w-full rounded-[22px] border border-[#EBD2C3] bg-white p-5 dark:border-[#49362E] dark:bg-[#29211D] sm:p-6">
+            <Text className="text-lg font-bold text-[#59331F] dark:text-[#F4E6DE] sm:text-xl">
+              Endereço do ponto
+            </Text>
 
-          <Text className="mt-2 text-[27px] font-extrabold leading-[33px] text-white">
-            {ponto.name}
-          </Text>
-
-          <Text className="mt-2.5 text-[14px] leading-[21px] text-[#FFF0E7]">
-            {formatAddress(ponto)}
-          </Text>
-
-          <View className="mt-[18px] flex-row items-center gap-[7px] self-start rounded-full border border-white/20 bg-white/10 px-3 py-2">
-            <View className="h-2 w-2 rounded-full bg-[#C9E5B7]" />
-
-            <Text className="text-xs font-bold text-white">
-              Ponto ativo
+            <Text className="mt-3 text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA] sm:text-base">
+              {endereco.street}, {endereco.number}
+              {endereco.complement ? ` - ${endereco.complement}` : ''}
+              {'\n'}
+              {endereco.district}
+              {'\n'}
+              {endereco.city} - CEP {endereco.postCode}
             </Text>
           </View>
-        </View>
 
-        {/* Barra de progresso */}
-        <ProgressBar />
+          {/* Horário */}
+          <View className="mb-5 w-full rounded-[22px] border border-[#EBD2C3] bg-white p-5 dark:border-[#49362E] dark:bg-[#29211D] sm:p-6">
+            <Text className="text-lg font-bold text-[#59331F] dark:text-[#F4E6DE] sm:text-xl">
+              Horário de funcionamento
+            </Text>
 
-        {/* Horários de funcionamento */}
-        <View className="mt-[22px] rounded-[22px] border border-[#EBD2C3] bg-[#F8E8DE] p-5 dark:border-[#604438] dark:bg-[#382820]">
-          <Text className="text-[17px] font-extrabold text-[#3D2922] dark:text-[#F8EDE7]">
-            Horário de funcionamento
-          </Text>
+            <Text className="mt-3 text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA] sm:text-base">
+              {ponto.opensDay}
+            </Text>
 
-          <Text className="mt-2 text-[14px] leading-[22px] text-[#72584D] dark:text-[#D2BFB5]">
-            {ponto.opensDay}
-          </Text>
+            <Text className="mt-1 text-base font-semibold text-[#8B4B2B] dark:text-[#E8B99F]">
+              {ponto.hourInit} às {ponto.hourFinal}
+            </Text>
+          </View>
 
-          <Text className="text-[14px] font-bold text-[#965239] dark:text-[#E9B69C]">
-            {ponto.hourInit} às {ponto.hourFinal}
-          </Text>
-        </View>
+          {/* Introdução */}
+          <View className="mb-5 w-full">
+            <Text className="text-xl font-extrabold text-[#59331F] dark:text-[#F4E6DE] sm:text-2xl">
+              Sua doação começa aqui!
+            </Text>
 
-        {/* Mensagem de boas-vindas */}
-        <View className="mt-[22px] rounded-[22px] border border-[#EBD2C3] bg-[#F8E8DE] p-5 dark:border-[#604438] dark:bg-[#382820]">
-          <Text className="text-[19px] font-extrabold text-[#3D2922] dark:text-[#F8EDE7]">
-            Sua atitude transforma!
-          </Text>
+            <Text className="mt-2 text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA] sm:text-base">
+              Siga as instruções abaixo para preparar suas tampinhas e
+              registrar sua contribuição.
+            </Text>
+          </View>
 
-          <Text className="mt-2 text-[14px] leading-[22px] text-[#72584D] dark:text-[#D2BFB5]">
-            Veja como preparar e pesar suas tampinhas antes de entregá-las
-            neste ponto de coleta.
-          </Text>
-        </View>
+          {/* Instruções */}
+          <View className="mb-5 w-full rounded-[22px] border border-[#EBD2C3] bg-white p-5 dark:border-[#49362E] dark:bg-[#29211D] sm:p-6">
+            <Text className="mb-5 text-lg font-bold text-[#59331F] dark:text-[#F4E6DE] sm:text-xl">
+              Como realizar sua doação
+            </Text>
 
-        {/* Introdução das etapas */}
-        <View className="mt-7">
-          <Text className="text-[23px] font-extrabold text-[#3D2922] dark:text-[#F8EDE7]">
-            Como fazer sua doação
-          </Text>
+            {[
+              {
+                number: '1',
+                title: 'Separe as tampinhas',
+                description:
+                  'Separe as tampinhas plásticas que deseja doar.',
+              },
+              {
+                number: '2',
+                title: 'Prepare a pesagem',
+                description:
+                  'Deixe as tampinhas prontas para serem colocadas na balança.',
+              },
+              {
+                number: '3',
+                title: 'Confira o peso',
+                description:
+                  'Acompanhe a leitura do peso durante o registro da doação.',
+              },
+              {
+                number: '4',
+                title: 'Entregue sua doação',
+                description:
+                  'Finalize o registro e contribua com o projeto.',
+              },
+            ].map((step, index) => (
+              <View
+                key={step.number}
+                className={`flex-row items-start ${
+                  index !== 3 ? 'mb-5' : ''
+                }`}
+              >
+                <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-[#F2DCCF] dark:bg-[#49362E]">
+                  <Text className="font-bold text-[#8B4B2B] dark:text-[#E8B99F]">
+                    {step.number}
+                  </Text>
+                </View>
 
-          <Text className="mt-[7px] text-[14px] leading-[21px] text-[#72584D] dark:text-[#D2BFB5]">
-            Siga as etapas abaixo para realizar o procedimento.
-          </Text>
-        </View>
+                <View className="flex-1">
+                  <Text className="font-bold text-[#59331F] dark:text-[#F4E6DE]">
+                    {step.title}
+                  </Text>
 
-        {/* Etapas */}
-        <View className="mt-4 gap-3">
-          {steps.map((step) => (
-            <View
-              key={step.number}
-              className="flex-row items-start gap-3 rounded-[20px] border border-[#EBD9CE] bg-white p-4 shadow-[0px_8px_18px_rgba(112,69,48,0.05)] dark:border-[#49362E] dark:bg-[#29211D] dark:shadow-none"
-            >
-              <View className="h-[42px] w-[42px] shrink-0 items-center justify-center rounded-full bg-[#F8E8DE] dark:bg-[#493229]">
-                <Text className="text-[14px] font-extrabold text-[#965239] dark:text-[#E9B69C]">
-                  {step.number}
-                </Text>
+                  <Text className="mt-1 text-sm leading-5 text-[#806B60] dark:text-[#C8B5AA]">
+                    {step.description}
+                  </Text>
+                </View>
               </View>
+            ))}
+          </View>
 
-              <View className="min-w-0 flex-1">
-                <Text className="text-[15px] font-extrabold text-[#3D2922] dark:text-[#F8EDE7]">
-                  {step.title}
-                </Text>
+          {/* Aviso */}
+          <View className="mb-5 w-full rounded-[18px] border border-[#E8C9A8] bg-[#FFF1DF] p-4 dark:border-[#604832] dark:bg-[#35291F]">
+            <Text className="text-sm leading-6 text-[#79502F] dark:text-[#E8C9A8]">
+              Antes de continuar, confira se suas tampinhas estão separadas
+              e prontas para a pesagem.
+            </Text>
+          </View>
 
-                <Text className="mt-1.5 text-[13px] leading-5 text-[#72584D] dark:text-[#D2BFB5]">
-                  {step.description}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        {/* Aviso */}
-        <View className="mt-4 rounded-[20px] border border-[#E6D5A9] bg-[#FFF7E5] p-[18px] dark:border-[#65552F] dark:bg-[#332B1D]">
-          <Text className="mb-2 text-[15px] font-extrabold text-[#73521B] dark:text-[#F1D99A]">
-            Antes de começar
-          </Text>
-
-          <Text className="text-[13px] leading-5 text-[#725F38] dark:text-[#E6D9B6]">
-            A pesagem deve seguir as orientações do responsável pelo local.
-            Esta página é um tutorial: ela não mede o peso nem registra uma
-            doação automaticamente.
-          </Text>
-        </View>
-
-        {/* Botão para iniciar a doação */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Iniciar doação"
-          accessibilityHint="Abre a tela de pesagem para registrar sua doação."
-          className="mt-6 min-h-[58px] flex-row items-center justify-center gap-2.5 rounded-[18px] border border-[#98543B] bg-[#A96549] px-5 py-[17px] shadow-[0px_10px_22px_rgba(139,77,52,0.16)] active:bg-[#8F5039] dark:border-[#B98267] dark:bg-[#80513D] dark:active:bg-[#704331]"
-          onPress={() =>
-            router.push({
-              pathname: '/doacao',
-              params: { pontoId: String(ponto.id) },
-            })
-          }
-        >
-          <Text className="text-[16px] font-extrabold text-white">
-            Iniciar doação
-          </Text>
-
-          <Text
-            accessible={false}
-            className="text-[20px] font-extrabold text-white"
+          {/* Iniciar doação */}
+          <Pressable
+            onPress={iniciarDoacao}
+            className="w-full items-center rounded-2xl bg-[#8B4B2B] px-6 py-4 active:bg-[#704027]"
+            accessibilityRole="button"
+            accessibilityLabel="Iniciar doação"
           >
-            →
-          </Text>
-        </Pressable>
+            <Text className="text-base font-bold text-white sm:text-lg">
+              Iniciar doação
+            </Text>
+          </Pressable>
 
-        {/* Rodapé */}
-        <Text className="mt-7 text-center text-[12px] text-[#80675C] dark:text-[#C8B5AA]">
-          Tampets • Cada tampinha conta
-        </Text>
+          {/* Voltar */}
+          <Pressable
+            onPress={voltarInicio}
+            className="mt-3 w-full items-center rounded-2xl border border-[#EBD2C3] bg-white px-6 py-4 dark:border-[#49362E] dark:bg-[#29211D]"
+            accessibilityRole="button"
+            accessibilityLabel="Voltar ao início"
+          >
+            <Text className="font-semibold text-[#806B60] dark:text-[#C8B5AA]">
+              Voltar ao início
+            </Text>
+          </Pressable>
+
+          <Text className="mt-6 text-center text-xs text-[#A18C80] dark:text-[#9F8C82]">
+            Cada tampinha conta!
+          </Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
