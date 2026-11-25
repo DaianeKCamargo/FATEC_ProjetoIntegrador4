@@ -86,6 +86,7 @@ wss.on("connection", (ws, req) => {
 
         ws.send(JSON.stringify({
             tipo: "erro",
+            codigo: "SESSAO_ATIVA",
             mensagem: "Este ponto de coleta já está sendo utilizado."
         }));
 

@@ -22,11 +22,17 @@ const TEMPO_LIMITE_BALANCA_MS = 5000;
 
 type Status = 'idle' | 'waiting' | 'ready' | 'finished';
 
-type LeituraWebSocket = {
-  tipo: string;
-  pontoId: string;
-  peso: number;
-};
+type MensagemWebSocket =
+  | {
+      tipo: 'leitura_peso';
+      pontoId: string;
+      peso: number;
+    }
+  | {
+      tipo: 'erro';
+      codigo?: string;
+      mensagem?: string;
+    };
 
 async function salvarDoacao(pontoId: string, peso: number) {
   const resposta = await fetch(`${API_URL}/doacoes`, {
@@ -67,6 +73,8 @@ export default function DoacaoScreen() {
   const [confirmando, setConfirmando] = useState(false);
   const [taraCapturada, setTaraCapturada] = useState(false);
   const [mostrarModalSemBalanca, setMostrarModalSemBalanca] = useState(false);
+  const [mostrarModalSessaoAtiva, setMostrarModalSessaoAtiva] =
+    useState(false);
 
   const socketRef = useRef<WebSocket | null>(null);
   const conexaoAtivaRef = useRef(false);
@@ -205,10 +213,24 @@ export default function DoacaoScreen() {
         try {
           const leitura = JSON.parse(
             evento.data as string
-          ) as LeituraWebSocket;
+          ) as MensagemWebSocket;
+
+          if (leitura.tipo === 'erro') {
+            fecharWebSocket();
+
+            if (leitura.codigo === 'SESSAO_ATIVA') {
+              setMostrarModalSessaoAtiva(true);
+            } else {
+              setErro(
+                leitura.mensagem ||
+                  'Não foi possível iniciar a pesagem neste ponto.'
+              );
+            }
+
+            return;
+          }
 
           if (
-            leitura.tipo !== 'leitura_peso' ||
             leitura.pontoId !== idPonto ||
             typeof leitura.peso !== 'number' ||
             !Number.isFinite(leitura.peso) ||
@@ -350,6 +372,7 @@ export default function DoacaoScreen() {
 
     setErro('');
     setMostrarModalSemBalanca(false);
+    setMostrarModalSessaoAtiva(false);
     setPeso(0);
     setTaraCapturada(false);
 
@@ -416,6 +439,7 @@ export default function DoacaoScreen() {
 
   function voltarAoPonto() {
     setMostrarModalSemBalanca(false);
+    setMostrarModalSessaoAtiva(false);
     fecharWebSocket();
 
     if (pontoId) {
@@ -719,6 +743,37 @@ export default function DoacaoScreen() {
               onPress={voltarAoPonto}
             >
               <Text className="font-bold text-white">Voltar ao ponto</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={mostrarModalSessaoAtiva}
+        transparent
+        animationType="fade"
+        onRequestClose={voltarAoPonto}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50 px-6">
+          <View
+            accessibilityViewIsModal
+            className="w-full max-w-[420px] rounded-3xl border border-[#F2C98A] bg-[#FFF4DE] p-6 dark:border-[#795426] dark:bg-[#3D3020]"
+          >
+            <Text className="text-center text-xl font-extrabold text-[#8A4B08] dark:text-[#FFD18A]">
+              Pesagem já em andamento
+            </Text>
+            <Text className="mt-3 text-center text-sm leading-5 text-[#74400A] dark:text-[#FFE2B8]">
+              Outra pessoa já iniciou uma sessão de pesagem neste ponto. Aguarde
+              a finalização da doação antes de tentar novamente.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              className="mt-6 min-h-[50px] items-center justify-center rounded-xl bg-[#C56A12] px-4 py-3"
+              onPress={voltarAoPonto}
+            >
+              <Text className="font-bold text-white">
+                Voltar à página do ponto
+              </Text>
             </Pressable>
           </View>
         </View>
