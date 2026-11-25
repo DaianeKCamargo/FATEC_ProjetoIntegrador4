@@ -10,8 +10,8 @@ app.use(express.json());
 
 const wss = new WebSocketServer({ server });
 
-// Armazena uma única conexão ativa por ponto de coleta
-const conexoesPorPonto = new Map();
+// Apenas uma sessão de pesagem pode ficar ativa em todo o serviço
+let sessaoAtiva = null;
 
 // Verifica se o serviço está funcionando
 app.get("/", (req, res) => {
@@ -46,11 +46,12 @@ app.post("/peso", (req, res) => {
 
     let clientesNotificados = 0;
 
-    const cliente = conexoesPorPonto.get(pontoId);
+    const cliente = sessaoAtiva;
 
     if (
         cliente &&
-        cliente.readyState === WebSocket.OPEN
+        cliente.readyState === WebSocket.OPEN &&
+        cliente.pontoId === pontoId
     ) {
         cliente.send(JSON.stringify(leitura));
         clientesNotificados++;
@@ -73,21 +74,21 @@ wss.on("connection", (ws, req) => {
         return;
     }
 
-    // Verifica se já existe alguém conectado ao ponto
-    const conexaoExistente = conexoesPorPonto.get(pontoId);
+    // Impede sessões simultâneas, mesmo em pontos de coleta diferentes
+    const conexaoExistente = sessaoAtiva;
 
     if (
         conexaoExistente &&
         conexaoExistente.readyState !== WebSocket.CLOSED
     ) {
         console.log(
-            `Conexao recusada: ponto ${pontoId} ja esta em uso.`
+            `Conexao recusada: ja existe uma sessao ativa no ponto ${conexaoExistente.pontoId}.`
         );
 
         ws.send(JSON.stringify({
             tipo: "erro",
             codigo: "SESSAO_ATIVA",
-            mensagem: "Este ponto de coleta já está sendo utilizado."
+            mensagem: "Já existe uma sessão de pesagem ativa."
         }));
 
         ws.close(1008, "Ponto ja esta em uso.");
@@ -96,7 +97,7 @@ wss.on("connection", (ws, req) => {
 
     // Registra a nova conexão
     ws.pontoId = pontoId;
-    conexoesPorPonto.set(pontoId, ws);
+    sessaoAtiva = ws;
 
     console.log(
         `Cliente conectado ao ponto ${pontoId}.`
@@ -105,9 +106,9 @@ wss.on("connection", (ws, req) => {
     // Libera o ponto quando o cliente desconectar
     ws.on("close", () => {
 
-        // Evita remover uma conexão mais recente
-        if (conexoesPorPonto.get(pontoId) === ws) {
-            conexoesPorPonto.delete(pontoId);
+        // Evita liberar uma sessão mais recente
+        if (sessaoAtiva === ws) {
+            sessaoAtiva = null;
         }
 
         console.log(
