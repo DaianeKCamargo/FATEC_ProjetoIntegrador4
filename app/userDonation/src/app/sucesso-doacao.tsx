@@ -292,7 +292,7 @@ export default function SucessoDoacaoScreen() {
           {/* Impacto positivo */}
           <View className="mt-5 w-full flex-row items-start gap-3 rounded-[20px] border border-[#CDE6D3] bg-[#F0F8F1] p-4 dark:border-[#344E39] dark:bg-[#1B2D21]">
             <View className="h-11 w-11 items-center justify-center rounded-full bg-[#D8EFDE] dark:bg-[#294832]">
-              <Text className="text-[24px]">🌱</Text>
+              <Text className="text-[24px]">🐶</Text>
             </View>
 
             <View className="min-w-0 flex-1">
@@ -301,8 +301,8 @@ export default function SucessoDoacaoScreen() {
               </Text>
 
               <Text className="mt-1.5 text-[14px] leading-[21px] text-[#43594A] dark:text-[#C0CEC3]">
-                Sua contribuição ajuda a incentivar a reciclagem e o descarte
-                correto de tampinhas.
+                Sua contribuição ajuda a transformar tampinhas recicladas em recursos para financiar a castração de animais,
+                 promovendo o bem-estar animal em situações de vulnerabilidade.
               </Text>
             </View>
           </View>
