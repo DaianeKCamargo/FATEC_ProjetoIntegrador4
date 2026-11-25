@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
+  ActivityIndicator,
   Image,
   Pressable,
   ScrollView,
@@ -7,12 +9,13 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { CollectionPoint } from '@/constants/collection-points';
+import { getCollectionPoint } from '@/services/collection-points';
 
 function ProgressBar() {
   return (
     <View className="mb-6 w-full">
       <View className="w-full rounded-[22px] border border-[#D4E7D8] bg-white px-4 py-4 dark:border-[#34463A] dark:bg-[#1C2921] sm:px-6 sm:py-5 md:px-8">
-        {/* Logo */}
         <View className="mb-6 w-full items-center justify-center">
           <Image
             source={require('@/assets/images/logo.png')}
@@ -25,9 +28,7 @@ function ProgressBar() {
           />
         </View>
 
-        {/* Etapas */}
         <View className="w-full flex-row items-start">
-          {/* Instrução */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#176638]">
               <Text className="text-sm font-bold text-white">1</Text>
@@ -38,12 +39,10 @@ function ProgressBar() {
             </Text>
           </View>
 
-          {/* Linha 1 */}
           <View className="flex-1 pt-[17px]">
             <View className="h-[2px] w-full bg-[#176638]" />
           </View>
 
-          {/* Doação */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#176638]">
               <Text className="text-sm font-bold text-white">2</Text>
@@ -54,12 +53,10 @@ function ProgressBar() {
             </Text>
           </View>
 
-          {/* Linha 2 */}
           <View className="flex-1 pt-[17px]">
             <View className="h-[2px] w-full bg-[#176638]" />
           </View>
 
-          {/* Confirmação */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#176638]">
               <Text className="text-sm font-bold text-white">3</Text>
@@ -76,14 +73,85 @@ function ProgressBar() {
 }
 
 export default function SucessoDoacaoScreen() {
-  const { pontoId, peso } = useLocalSearchParams<{
-    pontoId: string;
-    peso: string;
-  }>();
+  const { pontoId: parametroPonto, peso } =
+    useLocalSearchParams<{
+      pontoId?: string | string[];
+      peso?: string;
+    }>();
+
+  const pontoId = Array.isArray(parametroPonto)
+    ? parametroPonto[0]
+    : parametroPonto;
+
+  const [ponto, setPonto] = useState<CollectionPoint | null>(null);
+  const [carregandoPonto, setCarregandoPonto] = useState(true);
+  const [erroPonto, setErroPonto] = useState('');
 
   const pesoFormatado = Number(peso ?? 0)
     .toFixed(3)
     .replace('.', ',');
+
+  useEffect(() => {
+    let ativo = true;
+
+    async function carregarPonto() {
+      setCarregandoPonto(true);
+      setErroPonto('');
+      setPonto(null);
+
+      const id = Number(pontoId);
+
+      if (!pontoId || !Number.isInteger(id) || id <= 0) {
+        setErroPonto('Identificação do ponto de coleta inválida.');
+        setCarregandoPonto(false);
+        return;
+      }
+
+      try {
+        const resultado = await getCollectionPoint(id);
+
+        if (ativo) {
+          setPonto(resultado);
+        }
+      } catch (erroBusca) {
+        console.error(
+          '[SUCESSO DOAÇÃO] Erro ao buscar ponto:',
+          erroBusca
+        );
+
+        if (ativo) {
+          setErroPonto(
+            'Não foi possível carregar os dados do ponto de coleta.'
+          );
+        }
+      } finally {
+        if (ativo) {
+          setCarregandoPonto(false);
+        }
+      }
+    }
+
+    carregarPonto();
+
+    return () => {
+      ativo = false;
+    };
+  }, [pontoId]);
+
+  const endereco = ponto
+    ? [
+        `${ponto.address.street}, ${ponto.address.number}`,
+        ponto.address.complement,
+        ponto.address.district,
+        ponto.address.city,
+      ]
+        .filter(Boolean)
+        .join(' • ')
+    : '';
+
+  const enderecoCompleto = ponto
+    ? `${endereco} - ${ponto.address.postCode}`
+    : '';
 
   return (
     <SafeAreaView
@@ -96,7 +164,6 @@ export default function SucessoDoacaoScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="w-full">
-          {/* Logo e barra de progresso */}
           <ProgressBar />
 
           {/* Confirmação */}
@@ -156,21 +223,69 @@ export default function SucessoDoacaoScreen() {
                 PONTO DE COLETA
               </Text>
 
-              <View className="mt-3 flex-row items-start gap-3">
-                <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#E5F5E9] dark:bg-[#243D2B]">
-                  <Text className="text-[22px]">📍</Text>
-                </View>
+              {carregandoPonto ? (
+                <View className="mt-4 flex-row items-center gap-3">
+                  <ActivityIndicator color="#176638" />
 
-                <View className="min-w-0 flex-1 justify-center">
-                  <Text className="text-[15px] font-extrabold leading-[22px] text-[#193B29] dark:text-[#F0F5F1]">
-                    {pontoId ?? 'Não identificado'}
-                  </Text>
-
-                  <Text className="mt-1 text-[13px] leading-5 text-[#526758] dark:text-[#A9B9AC]">
-                    Identificação do ponto desta doação
+                  <Text className="text-sm text-[#526758] dark:text-[#A9B9AC]">
+                    Carregando informações do ponto...
                   </Text>
                 </View>
-              </View>
+              ) : erroPonto ? (
+                <Text className="mt-3 text-sm leading-5 text-[#A12B35] dark:text-[#FFB7BE]">
+                  {erroPonto}
+                </Text>
+              ) : ponto ? (
+                <View className="mt-3">
+                  <View className="flex-row items-start gap-3">
+                    <View className="h-11 w-11 items-center justify-center rounded-[14px] bg-[#E5F5E9] dark:bg-[#243D2B]">
+                      <Text className="text-[22px]">📍</Text>
+                    </View>
+
+                    <View className="min-w-0 flex-1 justify-center">
+                      <Text className="text-[16px] font-extrabold leading-[22px] text-[#193B29] dark:text-[#F0F5F1]">
+                        {ponto.name}
+                      </Text>
+
+                      <Text className="mt-1 text-[13px] leading-5 text-[#526758] dark:text-[#A9B9AC]">
+                        {enderecoCompleto}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View className="my-4 h-px bg-[#E1ECE3] dark:bg-[#34463A]" />
+
+                  <View className="gap-4">
+                    <View>
+                      <Text className="text-[11px] font-bold tracking-wider text-[#526758] dark:text-[#A9B9AC]">
+                        DIAS DE FUNCIONAMENTO
+                      </Text>
+
+                      <Text className="mt-1 text-sm font-semibold text-[#193B29] dark:text-[#F0F5F1]">
+                        {ponto.opensDay}
+                      </Text>
+                    </View>
+
+                    <View>
+                      <Text className="text-[11px] font-bold tracking-wider text-[#526758] dark:text-[#A9B9AC]">
+                        HORÁRIO DE ATENDIMENTO
+                      </Text>
+
+                      <Text className="mt-1 text-sm font-semibold text-[#193B29] dark:text-[#F0F5F1]">
+                        {ponto.hourInit} às {ponto.hourFinal}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text className="mt-4 text-xs text-[#526758] dark:text-[#A9B9AC]">
+                    Código do ponto: {ponto.id}
+                  </Text>
+                </View>
+              ) : (
+                <Text className="mt-3 text-sm text-[#A12B35] dark:text-[#FFB7BE]">
+                  Ponto de coleta não encontrado.
+                </Text>
+              )}
             </View>
           </View>
 
@@ -217,7 +332,7 @@ export default function SucessoDoacaoScreen() {
 
           {/* Rodapé */}
           <Text className="mt-5 pb-4 text-center text-[12px] font-semibold text-[#526758] dark:text-[#A9B9AC]">
-            Tampets • Cada tampinha conta 
+            Tampets • Cada tampinha conta
           </Text>
         </View>
       </ScrollView>
