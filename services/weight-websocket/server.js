@@ -10,7 +10,7 @@ app.use(express.json());
 
 const wss = new WebSocketServer({ server });
 
-// Armazena uma única conexão ativa por ponto de coleta
+// Permite uma única sessão de pesagem ativa por ponto de coleta
 const conexoesPorPonto = new Map();
 
 // Verifica se o serviço está funcionando
@@ -73,7 +73,7 @@ wss.on("connection", (ws, req) => {
         return;
     }
 
-    // Verifica se já existe alguém conectado ao ponto
+    // Impede mais de uma sessão simultânea no mesmo ponto
     const conexaoExistente = conexoesPorPonto.get(pontoId);
 
     if (
@@ -86,6 +86,7 @@ wss.on("connection", (ws, req) => {
 
         ws.send(JSON.stringify({
             tipo: "erro",
+            codigo: "SESSAO_ATIVA",
             mensagem: "Este ponto de coleta já está sendo utilizado."
         }));
 
