@@ -1,14 +1,18 @@
 
 import { useRouter } from "expo-router";
-import { realizarLogin, salvarToken } from "@/services/authService";
+import {
+  realizarLogin,
+  salvarToken,
+  solicitarRecuperacao,
+} from "@/services/authService";
 import { LinearGradient } from "expo-linear-gradient";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -21,9 +25,7 @@ export default function Login() {
   const { width } = useWindowDimensions();
   const isWideScreen = width >= 800;
 
-  const [activeTab, setActiveTab] = useState<"login" | "recuperar">(
-    "login"
-  );
+  const [activeTab, setActiveTab] = useState<"login" | "recuperar">("login");
 
   const [usuario, setUsuario] = useState("");
   const [senha, setSenha] = useState("");
@@ -31,27 +33,72 @@ export default function Login() {
   const [senhaVisivel, setSenhaVisivel] = useState(false);
   const [carregando, setCarregando] = useState(false);
   const [erroLogin, setErroLogin] = useState("");
+  const [tecladoAberto, setTecladoAberto] = useState(false);
+
+  // Detecta quando o teclado abre e fecha
+  useEffect(() => {
+    const eventoMostrar =
+      Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+
+    const eventoEsconder =
+      Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+
+    const mostrar = Keyboard.addListener(eventoMostrar, () => {
+      setTecladoAberto(true);
+    });
+
+    const esconder = Keyboard.addListener(eventoEsconder, () => {
+      setTecladoAberto(false);
+    });
+
+    return () => {
+      mostrar.remove();
+      esconder.remove();
+    };
+  }, []);
 
   async function handleSubmit() {
+    if (carregando) return;
+
+    // RECUPERAÇÃO DE SENHA
     if (activeTab === "recuperar") {
       if (!email.trim()) {
         setErroLogin("Informe seu e-mail.");
         return;
       }
 
-      Alert.alert(
-        "Recuperar senha",
-        "A recuperação de senha ainda será integrada à API."
-      );
+      setCarregando(true);
+      setErroLogin("");
+
+      try {
+        await solicitarRecuperacao(email);
+
+        Keyboard.dismiss();
+
+        router.push({
+          pathname: "/(auth)/validar-token",
+          params: {
+            email: email.trim().toLowerCase(),
+          },
+        });
+      } catch (erro) {
+        setErroLogin(
+          erro instanceof Error
+            ? erro.message
+            : "Não foi possível solicitar a recuperação de senha."
+        );
+      } finally {
+        setCarregando(false);
+      }
+
       return;
     }
 
+    // LOGIN
     if (!usuario.trim() || !senha) {
       setErroLogin("Preencha seu usuário e sua senha.");
       return;
     }
-
-    if (carregando) return;
 
     setCarregando(true);
     setErroLogin("");
@@ -61,6 +108,7 @@ export default function Login() {
 
       await salvarToken(resultado.token);
 
+      Keyboard.dismiss();
       setSenha("");
 
       router.replace("/(admin)/(tabs)/home");
@@ -76,133 +124,165 @@ export default function Login() {
   }
 
   return (
-    <View style={styles.screen}>
-      {/* Decoração do fundo */}
-      <View pointerEvents="none" style={styles.decorationTop}>
-        <View style={styles.bubble} />
-        <View style={styles.bubbleSmall} />
-        <View style={styles.bubble} />
-      </View>
+    <View className="flex-1 bg-[#F8FAFE] overflow-hidden">
+      {/* DECORAÇÃO DO FUNDO */}
+      {!tecladoAberto && (
+        <>
+          <View
+            pointerEvents="none"
+            className="absolute top-6 left-5 right-5 flex-row justify-around opacity-30"
+          >
+            <View className="w-[34px] h-[34px] rounded-full border border-[#DCE3FA] bg-[#E9E9FC]" />
+            <View className="w-[13px] h-[13px] rounded-full bg-[#E1D9FA]" />
+            <View className="w-[34px] h-[34px] rounded-full border border-[#DCE3FA] bg-[#E9E9FC]" />
+          </View>
 
-      <View pointerEvents="none" style={styles.decorationBottom}>
-        <View style={styles.bubbleSmall} />
-        <View style={styles.bubble} />
-      </View>
+          <View
+            pointerEvents="none"
+            className="absolute bottom-7 left-5 right-5 flex-row justify-around opacity-25"
+          >
+            <View className="w-[13px] h-[13px] rounded-full bg-[#E1D9FA]" />
+            <View className="w-[34px] h-[34px] rounded-full border border-[#DCE3FA] bg-[#E9E9FC]" />
+          </View>
+        </>
+      )}
 
+      {/* AJUSTE DO TECLADO */}
       <KeyboardAvoidingView
-        style={styles.keyboardContainer}
+        className="flex-1"
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={0}
       >
-      <ScrollView
-        contentContainerStyle={[
-          styles.scrollContent,
-          isWideScreen && styles.scrollContentWide,
-        ]}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        showsVerticalScrollIndicator={false}
-      >
+        <ScrollView
+          className="flex-1"
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: tecladoAberto ? "flex-start" : "center",
+            paddingHorizontal: isWideScreen ? 40 : 22,
+            paddingTop: tecladoAberto ? 12 : isWideScreen ? 48 : 36,
+            paddingBottom: tecladoAberto ? 20 : isWideScreen ? 48 : 36,
+          }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          scrollEnabled
+          showsVerticalScrollIndicator={false}
+        >
           <View
-            style={[
-              styles.content,
-              isWideScreen && styles.contentWide,
-            ]}
+            className={`w-full self-center gap-7 ${
+              isWideScreen
+                ? "max-w-[1280px] flex-row items-center justify-center"
+                : "max-w-[520px]"
+            }`}
           >
-            {/* Painel de boas-vindas */}
-            <View
-              style={[
-                styles.welcomeCard,
-                isWideScreen && styles.welcomeCardWide,
-              ]}
-            >
-              <LinearGradient
-                colors={["#587DBB", "#C15BDD"]}
-                style={styles.welcomeStripe}
-              />
+            {/* PAINEL DE BOAS-VINDAS */}
+            {!tecladoAberto && (
+              <View
+                className={`bg-white/[0.94] rounded-[30px] border border-[#E0E8F7] overflow-hidden flex-row ${
+                  isWideScreen
+                    ? "flex-1 max-w-[680px] min-h-[390px]"
+                    : "min-h-[270px]"
+                }`}
+              >
+                <LinearGradient
+                  colors={["#587DBB", "#C15BDD"]}
+                  style={{ width: 9 }}
+                />
 
-              <View style={styles.welcomeContent}>
-                <Text style={styles.welcomeLabel}>
-                  Seja Bem-Vindo!
-                </Text>
+                <View className="flex-1 items-center justify-center px-6 py-9">
+                  <Text className="text-[19px] font-semibold text-[#263449] text-center mb-[22px]">
+                    Seja Bem-Vindo!
+                  </Text>
 
-                <Text style={styles.welcomeTitle}>
-                  O progresso de hoje constrói a conquista de amanhã.
-                </Text>
+                  <Text
+                    className={`font-black text-[#2D4F83] text-center ${
+                      isWideScreen
+                        ? "text-[34px] leading-[42px]"
+                        : "text-[30px] leading-[37px]"
+                    }`}
+                  >
+                    O progresso de hoje constrói a conquista de amanhã.
+                  </Text>
 
-                <Text style={styles.welcomeDescription}>
-                  TamPets — juntos por um futuro melhor para os animais.
-                </Text>
+                  <Text className="mt-[18px] text-[13px] leading-5 text-[#64748B] text-center">
+                    TamPets — juntos por um futuro melhor para os animais.
+                  </Text>
+                </View>
               </View>
-            </View>
+            )}
 
-            {/* Painel de autenticação */}
+            {/* PAINEL DE LOGIN */}
             <View
-              style={[
-                styles.formCard,
-                isWideScreen && styles.formCardWide,
-              ]}
+              className={`bg-white rounded-[32px] px-6 py-7 ${
+                isWideScreen
+                  ? "flex-1 max-w-[520px] px-[30px] py-[30px]"
+                  : "w-full"
+              }`}
             >
-              {/* Abas */}
-              <View style={styles.tabs}>
+              {/* ABAS */}
+              <View className="flex-row items-center bg-[#EDF1F7] p-[5px] rounded-full mb-[18px]">
                 <TouchableOpacity
-                  style={[
-                    styles.tab,
-                    activeTab === "login" && styles.activeTab,
-                  ]}
+                  className={`flex-1 min-h-[44px] justify-center items-center rounded-full px-1 ${
+                    activeTab === "login" ? "bg-[#719EDB]" : ""
+                  }`}
                   onPress={() => {
                     setActiveTab("login");
                     setErroLogin("");
+                    Keyboard.dismiss();
                   }}
                   accessibilityRole="tab"
                   accessibilityState={{
                     selected: activeTab === "login",
                   }}
+                  activeOpacity={0.8}
                 >
                   <Text
-                    style={[
-                      styles.tabText,
-                      activeTab === "login" &&
-                        styles.activeTabText,
-                    ]}
+                    className={`text-[13px] text-center font-semibold ${
+                      activeTab === "login"
+                        ? "text-white font-extrabold"
+                        : "text-[#52627B]"
+                    }`}
                   >
                     Login
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[
-                    styles.tab,
-                    activeTab === "recuperar" &&
-                      styles.activeTab,
-                  ]}
+                  className={`flex-1 min-h-[44px] justify-center items-center rounded-full px-1 ${
+                    activeTab === "recuperar" ? "bg-[#719EDB]" : ""
+                  }`}
                   onPress={() => {
                     setActiveTab("recuperar");
                     setErroLogin("");
+                    Keyboard.dismiss();
                   }}
                   accessibilityRole="tab"
                   accessibilityState={{
                     selected: activeTab === "recuperar",
                   }}
+                  activeOpacity={0.8}
                 >
                   <Text
-                    style={[
-                      styles.tabText,
-                      activeTab === "recuperar" &&
-                        styles.activeTabText,
-                    ]}
+                    className={`text-[13px] text-center font-semibold ${
+                      activeTab === "recuperar"
+                        ? "text-white font-extrabold"
+                        : "text-[#52627B]"
+                    }`}
                   >
                     Recuperar Senha
                   </Text>
                 </TouchableOpacity>
               </View>
 
+              {/* FORMULÁRIO DE LOGIN */}
               {activeTab === "login" ? (
                 <>
-                  <Text style={styles.label}>Usuário</Text>
+                  {/* USUÁRIO */}
+                  <Text className="text-[15px] font-semibold text-[#52627B] mb-[9px] mt-[1px]">
+                    Usuário
+                  </Text>
 
                   <TextInput
-                    style={styles.input}
+                    className="h-[47px] border border-[#DDE6F5] rounded-[14px] px-[13px] text-sm text-[#263449] bg-white mb-5"
                     placeholder="Digite seu usuário"
                     placeholderTextColor="#A7A7A7"
                     value={usuario}
@@ -210,14 +290,18 @@ export default function Login() {
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="next"
+                    blurOnSubmit={false}
                     accessibilityLabel="Usuário"
                   />
 
-                  <Text style={styles.label}>Senha</Text>
+                  {/* SENHA */}
+                  <Text className="text-[15px] font-semibold text-[#52627B] mb-[9px] mt-[1px]">
+                    Senha
+                  </Text>
 
-                  <View style={styles.passwordContainer}>
+                  <View className="min-h-[47px] flex-row items-center border border-[#DDE6F5] rounded-[14px] px-3 mb-5">
                     <TextInput
-                      style={styles.passwordInput}
+                      className="flex-1 min-w-0 h-[45px] text-sm text-[#263449]"
                       placeholder="Digite sua senha"
                       placeholderTextColor="#A7A7A7"
                       value={senha}
@@ -230,37 +314,36 @@ export default function Login() {
                     />
 
                     <TouchableOpacity
-                      onPress={() =>
-                        setSenhaVisivel(!senhaVisivel)
-                      }
+                      onPress={() => setSenhaVisivel(!senhaVisivel)}
                       accessibilityRole="button"
                       accessibilityLabel={
-                        senhaVisivel
-                          ? "Ocultar senha"
-                          : "Mostrar senha"
+                        senhaVisivel ? "Ocultar senha" : "Mostrar senha"
                       }
+                      activeOpacity={0.7}
                     >
-                      <Text style={styles.showPassword}>
+                      <Text className="text-[11px] font-semibold text-[#657DA4] pl-2">
                         {senhaVisivel ? "Ocultar" : "Mostrar"}
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </>
               ) : (
+                /* FORMULÁRIO DE RECUPERAÇÃO */
                 <>
-                  <Text style={styles.recoveryTitle}>
+                  <Text className="text-xl font-extrabold text-[#2D4F83] mt-1 mb-2.5">
                     Recuperar acesso
                   </Text>
 
-                  <Text style={styles.recoveryDescription}>
-                    Informe seu e-mail cadastrado para receber
-                    instruções de recuperação da senha.
+                  <Text className="text-sm leading-[21px] text-[#64748B] mb-5">
+                    Informe seu e-mail cadastrado para receber instruções de recuperação da senha.
                   </Text>
 
-                  <Text style={styles.label}>E-mail</Text>
+                  <Text className="text-[15px] font-semibold text-[#52627B] mb-[9px] mt-[1px]">
+                    E-mail
+                  </Text>
 
                   <TextInput
-                    style={styles.input}
+                    className="h-[47px] border border-[#DDE6F5] rounded-[14px] px-[13px] text-sm text-[#263449] bg-white mb-5"
                     placeholder="Digite seu e-mail"
                     placeholderTextColor="#A7A7A7"
                     value={email}
@@ -275,33 +358,42 @@ export default function Login() {
                 </>
               )}
 
-              {/* Mensagem de erro */}
+              {/* ERRO */}
               {erroLogin ? (
                 <Text
                   accessibilityRole="alert"
-                  style={styles.errorText}
+                  className="text-[#B91C1C] text-[13px] mb-3"
                 >
                   {erroLogin}
                 </Text>
               ) : null}
 
-              {/* Botão de envio */}
+              {/* BOTÃO PRINCIPAL */}
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={handleSubmit}
                 disabled={carregando}
                 accessibilityRole="button"
-                style={styles.submitButton}
+                className={`rounded-lg overflow-hidden ${
+                  carregando ? "opacity-70" : ""
+                }`}
               >
                 <LinearGradient
                   colors={["#A340C4", "#C15BDD"]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.submitGradient}
+                  style={{
+                    minHeight: 46,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    paddingHorizontal: 12,
+                  }}
                 >
-                  <Text style={styles.submitText}>
+                  <Text className="text-sm font-bold text-white">
                     {carregando
-                      ? "Entrando..."
+                      ? activeTab === "login"
+                        ? "Entrando..."
+                        : "Enviando..."
                       : activeTab === "login"
                         ? "Entrar"
                         : "Enviar instruções"}
@@ -309,15 +401,18 @@ export default function Login() {
                 </LinearGradient>
               </TouchableOpacity>
 
+              {/* VOLTAR PARA LOGIN */}
               {activeTab === "recuperar" && (
                 <TouchableOpacity
-                  style={styles.backButton}
+                  className="items-center pt-[18px]"
                   onPress={() => {
                     setActiveTab("login");
                     setErroLogin("");
+                    Keyboard.dismiss();
                   }}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.backButtonText}>
+                  <Text className="text-[13px] font-semibold text-[#6F53B6]">
                     Voltar para o login
                   </Text>
                 </TouchableOpacity>
@@ -327,289 +422,22 @@ export default function Login() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Atalho visual de acessibilidade */}
-      <TouchableOpacity
-        style={styles.accessibilityButton}
-        accessibilityRole="button"
-        accessibilityLabel="Acessibilidade"
-        onPress={() =>
-          Alert.alert(
-            "Acessibilidade",
-            "As opções de acessibilidade serão implementadas nesta versão."
-          )
-        }
-      >
-        <Text style={styles.accessibilityIcon}>♿</Text>
-      </TouchableOpacity>
+      {/* BOTÃO DE ACESSIBILIDADE */}
+      {!tecladoAberto && (
+        <TouchableOpacity
+          className="absolute right-[18px] bottom-[18px] w-[54px] h-[54px] rounded-full bg-[#8754BF] items-center justify-center"
+          accessibilityRole="button"
+          accessibilityLabel="Acessibilidade"
+          onPress={() =>
+            Alert.alert(
+              "Acessibilidade",
+              "As opções de acessibilidade serão implementadas nesta versão."
+            )
+          }
+        >
+          <Text className="text-white text-[25px]">♿</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#F8FAFE",
-    overflow: "hidden",
-  },
-  keyboardContainer: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: "center",
-    paddingHorizontal: 22,
-    paddingVertical: 36,
-  },
-  scrollContentWide: {
-    paddingHorizontal: 40,
-    paddingVertical: 48,
-  },
-  content: {
-    width: "100%",
-    maxWidth: 520,
-    alignSelf: "center",
-    gap: 28,
-  },
-  contentWide: {
-    maxWidth: 1280,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 84,
-  },
-
-  // Painel esquerdo
-  welcomeCard: {
-    minHeight: 270,
-    backgroundColor: "rgba(255,255,255,0.94)",
-    borderRadius: 30,
-    borderWidth: 1,
-    borderColor: "#E0E8F7",
-    overflow: "hidden",
-    flexDirection: "row",
-    shadowColor: "#435B85",
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.09,
-    shadowRadius: 28,
-    elevation: 4,
-  },
-  welcomeCardWide: {
-    flex: 1,
-    maxWidth: 680,
-    minHeight: 390,
-  },
-  welcomeStripe: {
-    width: 9,
-  },
-  welcomeContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 25,
-    paddingVertical: 35,
-  },
-  welcomeLabel: {
-    fontSize: 19,
-    fontWeight: "600",
-    color: "#263449",
-    marginBottom: 22,
-    textAlign: "center",
-  },
-  welcomeTitle: {
-    fontSize: 31,
-    lineHeight: 37,
-    fontWeight: "900",
-    color: "#2D4F83",
-    textAlign: "center",
-    letterSpacing: -0.8,
-  },
-  welcomeDescription: {
-    marginTop: 18,
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#64748B",
-    textAlign: "center",
-  },
-
-  // Painel direito
-  formCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 32,
-    paddingHorizontal: 25,
-    paddingVertical: 28,
-    shadowColor: "#52617A",
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.08,
-    shadowRadius: 28,
-    elevation: 4,
-  },
-  formCardWide: {
-    flex: 1,
-    maxWidth: 520,
-    paddingHorizontal: 30,
-    paddingVertical: 30,
-  },
-  tabs: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#EDF1F7",
-    padding: 5,
-    borderRadius: 30,
-    marginBottom: 18,
-  },
-  tab: {
-    flex: 1,
-    minHeight: 44,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 25,
-    paddingHorizontal: 5,
-  },
-  activeTab: {
-    backgroundColor: "#719EDB",
-  },
-  tabText: {
-    color: "#52627B",
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-  },
-  activeTabText: {
-    color: "#FFFFFF",
-    fontWeight: "800",
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#52627B",
-    marginBottom: 9,
-    marginTop: 1,
-  },
-  input: {
-    height: 47,
-    borderWidth: 1,
-    borderColor: "#DDE6F5",
-    borderRadius: 14,
-    paddingHorizontal: 13,
-    fontSize: 14,
-    color: "#263449",
-    backgroundColor: "#FFFFFF",
-    marginBottom: 20,
-  },
-  passwordContainer: {
-    minHeight: 47,
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#DDE6F5",
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    marginBottom: 20,
-  },
-  passwordInput: {
-    flex: 1,
-    minWidth: 0,
-    height: 45,
-    fontSize: 14,
-    color: "#263449",
-  },
-  showPassword: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#657DA4",
-    paddingLeft: 8,
-  },
-  errorText: {
-    color: "#B91C1C",
-    fontSize: 13,
-    marginBottom: 12,
-  },
-  submitButton: {
-    borderRadius: 8,
-    overflow: "hidden",
-    marginTop: 0,
-  },
-  submitGradient: {
-    minHeight: 46,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 12,
-  },
-  submitText: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  recoveryTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#2D4F83",
-    marginTop: 4,
-    marginBottom: 10,
-  },
-  recoveryDescription: {
-    color: "#64748B",
-    fontSize: 14,
-    lineHeight: 21,
-    marginBottom: 20,
-  },
-  backButton: {
-    alignItems: "center",
-    paddingTop: 18,
-  },
-  backButtonText: {
-    color: "#6F53B6",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  // Decoração
-  decorationTop: {
-    position: "absolute",
-    top: 25,
-    left: 20,
-    right: 20,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    opacity: 0.3,
-  },
-  decorationBottom: {
-    position: "absolute",
-    bottom: 30,
-    left: 20,
-    right: 20,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    opacity: 0.25,
-  },
-  bubble: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: "#DCE3FA",
-    backgroundColor: "#E9E9FC",
-  },
-  bubbleSmall: {
-    width: 13,
-    height: 13,
-    borderRadius: 7,
-    backgroundColor: "#E1D9FA",
-  },
-  accessibilityButton: {
-    position: "absolute",
-    right: 18,
-    bottom: 18,
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: "#8754BF",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 5,
-  },
-  accessibilityIcon: {
-    color: "#FFFFFF",
-    fontSize: 25,
-  },
-});

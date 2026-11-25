@@ -6,6 +6,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/+$/, "").replace(
   /\/api$/,
   ""
 );
+
 const TOKEN_KEY = "tampets_admin_token";
 
 let tokenWeb: string | null = null;
@@ -19,6 +20,12 @@ type LoginResponse = {
     emailUser: string;
   };
 };
+
+type ApiResponse = {
+  message: string;
+};
+
+// LOGIN
 
 export async function realizarLogin(
   username: string,
@@ -62,6 +69,92 @@ export async function realizarLogin(
 
   return dados as LoginResponse;
 }
+
+// RECUPERAÇÃO DE SENHA
+
+async function requisicaoRecuperacao(
+  endpoint: string,
+  dadosEnvio: Record<string, string>
+): Promise<ApiResponse> {
+  if (!API_URL) {
+    throw new Error("Endereço da API não configurado.");
+  }
+
+  const resposta = await fetch(`${API_URL}${endpoint}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(dadosEnvio),
+  });
+
+  const corpo = await resposta.text();
+
+  let dados: ApiResponse;
+
+  try {
+    dados = JSON.parse(corpo);
+  } catch {
+    throw new Error(
+      `A API respondeu com conteúdo inválido (HTTP ${resposta.status}).`
+    );
+  }
+
+  if (!resposta.ok) {
+    throw new Error(
+      dados.message || "Não foi possível realizar a operação."
+    );
+  }
+
+  return dados;
+}
+
+// 1. Solicitar envio do token por e-mail
+
+export async function solicitarRecuperacao(
+  emailUser: string
+): Promise<ApiResponse> {
+  return requisicaoRecuperacao(
+    "/api/password-reset/solicitar",
+    {
+      emailUser: emailUser.trim().toLowerCase(),
+    }
+  );
+}
+
+// 2. Validar token recebido por e-mail
+
+export async function validarTokenRecuperacao(
+  emailUser: string,
+  resetToken: string
+): Promise<ApiResponse> {
+  return requisicaoRecuperacao(
+    "/api/password-reset/validar",
+    {
+      emailUser: emailUser.trim().toLowerCase(),
+      resetToken: resetToken.trim(),
+    }
+  );
+}
+
+// 3. Redefinir senha
+
+export async function redefinirSenha(
+  emailUser: string,
+  resetToken: string,
+  novaSenha: string
+): Promise<ApiResponse> {
+  return requisicaoRecuperacao(
+    "/api/password-reset/redefinir",
+    {
+      emailUser: emailUser.trim().toLowerCase(),
+      resetToken: resetToken.trim(),
+      novaSenha,
+    }
+  );
+}
+
+// TOKEN / SESSÃO
 
 export async function salvarToken(token: string) {
   if (Platform.OS === "web") {
