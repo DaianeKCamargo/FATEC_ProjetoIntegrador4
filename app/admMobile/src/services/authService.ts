@@ -80,6 +80,32 @@ export async function obterToken() {
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
+export async function verificarSessao() {
+  const token = await obterToken();
+
+  if (!token || !API_URL) {
+    return false;
+  }
+
+  const resposta = await fetch(`${API_URL}/api/admin/me`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (resposta.status === 401 || resposta.status === 403) {
+    await removerToken();
+    return false;
+  }
+
+  if (!resposta.ok) {
+    throw new Error("Não foi possível verificar sua sessão.");
+  }
+
+  return true;
+}
+
 export async function removerToken() {
   if (Platform.OS === "web") {
     tokenWeb = null;
