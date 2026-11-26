@@ -1,3 +1,4 @@
+
 const { Pool } = require("pg");
 
 const pool = new Pool({
@@ -36,7 +37,10 @@ async function listarRegistrosBalanca() {
             d.quantidade_tampinhas,
             d.ponto_id,
             'BALANCA' AS origem,
-            COALESCE(p.name_point, 'Ponto não identificado') AS responsavel,
+            COALESCE(
+                p.name_point,
+                'Ponto não identificado'
+            ) AS responsavel,
             p.name_point AS nome_ponto
         FROM doacoes d
         LEFT JOIN point_collections p
@@ -59,6 +63,34 @@ async function listarTodosRegistros() {
     );
 }
 
+// Cadastra um registro manual
+async function cadastrarRegistroManual(data, quantidade_kg) {
+    const resultado = await pool.query(
+        `
+        INSERT INTO "caps-registration" (
+            data,
+            quantidade_kg
+        )
+        VALUES ($1, $2)
+        RETURNING
+            id,
+            data,
+            quantidade_kg,
+            created_at
+        `,
+        [data, quantidade_kg]
+    );
+
+    return {
+        ...resultado.rows[0],
+        origem: "MANUAL",
+        responsavel: "Administradora",
+        ponto_id: null,
+        nome_ponto: null
+    };
+}
+
 module.exports = {
-    listarTodosRegistros
+    listarTodosRegistros,
+    cadastrarRegistroManual
 };
