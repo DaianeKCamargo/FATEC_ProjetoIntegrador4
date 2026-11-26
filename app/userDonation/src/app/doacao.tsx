@@ -831,8 +831,8 @@ export default function DoacaoScreen() {
             </Text>
 
             <Text className="mt-3 text-center text-sm leading-5 text-[#74400A] dark:text-[#FFE2B8]">
-              Outra pessoa já iniciou uma sessão de pesagem neste ponto. Aguarde
-              a finalização da doação antes de tentar novamente.
+              Outra pessoa já iniciou uma pesagem. Aguarde a finalização antes
+              de tentar novamente, mesmo que seja em outro ponto de coleta.
             </Text>
 
             <Pressable
