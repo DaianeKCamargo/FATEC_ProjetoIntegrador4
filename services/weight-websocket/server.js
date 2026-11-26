@@ -30,6 +30,9 @@ pool.on("error", (erro) => {
 const TEMPO_MAXIMO_SESSAO_MS = 2 * 60 * 1000; // 2 minutos máximos por doador
 const INTERVALO_HEARTBEAT_MS = 10000; // Verifica conexão viva a cada 10s
 
+// Trava atômica imediata em memória (protege contra cliques simultâneos e PgBouncer)
+const pontosEmUso = new Set();
+
 // Mantém a conexão local por pontoId para encaminhar as leituras recebidas por HTTP.
 const conexoesPorPonto = new Map();
 
@@ -54,7 +57,6 @@ function enviarErroEFechar(ws, codigo, mensagem, closeCode, closeReason) {
             console.error("Erro ao informar falha na sessão:", erro.message);
         }
 
-        // Pequeno atraso garante que o cliente receba o JSON antes do frame de close
         setTimeout(() => {
             if (ws.readyState !== WebSocket.CLOSED) {
                 ws.close(closeCode, closeReason);
@@ -63,7 +65,9 @@ function enviarErroEFechar(ws, codigo, mensagem, closeCode, closeReason) {
     });
 }
 
-async function liberarBloqueio(client, chaveSessao) {
+async function liberarBloqueio(pontoId, client, chaveSessao) {
+    pontosEmUso.delete(pontoId);
+
     if (!client || !chaveSessao) return;
     try {
         await client.query(
@@ -78,6 +82,22 @@ async function liberarBloqueio(client, chaveSessao) {
 }
 
 async function iniciarSessao(ws, pontoId) {
+    // 1. VERIFICAÇÃO SÍNCRONA IMEDIATA (antes de qualquer await)
+    if (pontosEmUso.has(pontoId)) {
+        console.log(`Bloqueado imediatamente em memoria: ponto ${pontoId} ja esta em uso.`);
+        enviarErroEFechar(
+            ws,
+            "SESSAO_ATIVA",
+            "Outra pessoa já iniciou uma pesagem neste ponto de coleta. Aguarde a finalização antes de tentar novamente.",
+            1008,
+            "Sessao de pesagem ja ativa neste ponto."
+        );
+        return;
+    }
+
+    // Reserva o ponto no mesmo milissegundo em que o segundo celular tenta entrar
+    pontosEmUso.add(pontoId);
+
     let client;
     const chaveSessao = gerarChaveSessao(pontoId);
 
@@ -91,9 +111,8 @@ async function iniciarSessao(ws, pontoId) {
 
         if (!resultado.rows[0].adquirido) {
             client.release();
-            console.log(
-                `Conexao recusada: ja existe uma sessao ativa no ponto ${pontoId}.`
-            );
+            pontosEmUso.delete(pontoId);
+            console.log(`Bloqueado pelo PostgreSQL: ponto ${pontoId} ja esta em uso.`);
             enviarErroEFechar(
                 ws,
                 "SESSAO_ATIVA",
@@ -105,7 +124,7 @@ async function iniciarSessao(ws, pontoId) {
         }
 
         if (ws.readyState !== WebSocket.OPEN) {
-            await liberarBloqueio(client, chaveSessao);
+            await liberarBloqueio(pontoId, client, chaveSessao);
             return;
         }
 
@@ -119,7 +138,6 @@ async function iniciarSessao(ws, pontoId) {
             ws.isAlive = true;
         });
 
-        // Timeout máximo de segurança para não prender a balança do ponto
         const timeoutSessao = setTimeout(() => {
             if (ws.readyState === WebSocket.OPEN) {
                 enviarErroEFechar(
@@ -144,18 +162,13 @@ async function iniciarSessao(ws, pontoId) {
             ws.clienteBanco = null;
             ws.chaveSessao = null;
 
-            if (clienteBanco) {
-                void liberarBloqueio(clienteBanco, chave);
-            }
+            void liberarBloqueio(pontoId, clienteBanco, chave);
 
-            console.log(`Sessao encerrada e lock liberado no ponto ${pontoId}.`);
+            console.log(`Sessao encerrada e ponto ${pontoId} liberado.`);
         });
 
         ws.on("error", (erro) => {
-            console.error(
-                `Erro WebSocket no ponto ${pontoId}:`,
-                erro.message
-            );
+            console.error(`Erro WebSocket no ponto ${pontoId}:`, erro.message);
         });
 
         ws.send(JSON.stringify({
@@ -163,26 +176,21 @@ async function iniciarSessao(ws, pontoId) {
             pontoId,
         }), (erro) => {
             if (erro) {
-                console.error(
-                    `Erro ao confirmar a sessão do ponto ${pontoId}:`,
-                    erro.message
-                );
+                console.error(`Erro ao confirmar sessao do ponto ${pontoId}:`, erro.message);
                 if (ws.readyState !== WebSocket.CLOSED) {
                     ws.close(1011, "Falha ao confirmar sessao.");
                 }
             }
         });
 
-        console.log(`Sessao iniciada no ponto ${pontoId} (${chaveSessao}).`);
+        console.log(`Sessao exclusiva iniciada no ponto ${pontoId}.`);
     } catch (erro) {
         if (client) {
             client.release(erro);
         }
+        pontosEmUso.delete(pontoId);
 
-        console.error(
-            `Nao foi possivel iniciar a sessao no ponto ${pontoId}:`,
-            erro.message
-        );
+        console.error(`Erro ao iniciar sessao no ponto ${pontoId}:`, erro.message);
         enviarErroEFechar(
             ws,
             "SESSAO_INDISPONIVEL",
@@ -193,7 +201,6 @@ async function iniciarSessao(ws, pontoId) {
     }
 }
 
-// Heartbeat: derruba conexões mortas/fantasmas para liberar o lock do ponto
 const intervaloHeartbeat = setInterval(() => {
     wss.clients.forEach((ws) => {
         if (ws.isAlive === false) {
@@ -216,8 +223,8 @@ app.get("/", async (req, res) => {
         res.json({
             mensagem: "Servidor WebSocket funcionando!",
             banco: "conectado",
-            bloqueio: "por_ponto",
-            pontosAtivos: Array.from(conexoesPorPonto.keys()),
+            bloqueio: "memoria_e_banco_por_ponto",
+            pontosAtivos: Array.from(pontosEmUso),
         });
     } catch (erro) {
         console.error("Erro ao verificar a conexão com o banco:", erro.message);
@@ -253,3 +260,33 @@ app.post("/peso", (req, res) => {
 
     let clientesNotificados = 0;
     const cliente = conexoesPorPonto.get(idLimpo);
+
+    if (cliente && cliente.readyState === WebSocket.OPEN) {
+        cliente.send(JSON.stringify(leitura));
+        clientesNotificados++;
+    }
+
+    res.json({
+        mensagem: "Leitura recebida.",
+        clientesNotificados,
+        leitura,
+    });
+});
+
+wss.on("connection", (ws, req) => {
+    const url = new URL(req.url, "http://localhost");
+    const pontoId = url.searchParams.get("pontoId");
+
+    if (!pontoId || !pontoId.trim()) {
+        ws.close(1008, "Informe o pontoId.");
+        return;
+    }
+
+    void iniciarSessao(ws, pontoId.trim());
+});
+
+const PORT = process.env.PORT || 3000;
+
+server.listen(PORT, "0.0.0.0", () => {
+    console.log(`Servidor iniciado na porta ${PORT}.`);
+});
