@@ -16,10 +16,15 @@ import { getCollectionPoint } from '@/services/collection-points';
 const API_URL = 'https://fatec-balanca.vercel.app';
 const WEBSOCKET_URL = 'wss://weight-websocket.onrender.com';
 const TEMPO_LIMITE_BALANCA_MS = 5000;
+const TEMPO_LIMITE_SESSAO_MS = 10000;
 
-type Status = 'idle' | 'waiting' | 'ready' | 'finished';
+type Status = 'idle' | 'connecting' | 'waiting' | 'ready' | 'finished';
 
 type MensagemWebSocket =
+  | {
+      tipo: 'sessao_iniciada';
+      pontoId: string;
+    }
   | {
       tipo: 'leitura_peso';
       pontoId: string;
@@ -247,10 +252,10 @@ export default function DoacaoScreen() {
           return;
         }
 
-        console.log('[WEBSOCKET] Conectado ao ponto:', idPonto);
-
-        setErro('');
-        setStatus('waiting');
+        console.log(
+          '[WEBSOCKET] Conectado; aguardando confirmação da sessão:',
+          idPonto
+        );
 
         timeoutSemLeituraRef.current = setTimeout(() => {
           if (
@@ -261,13 +266,14 @@ export default function DoacaoScreen() {
           }
 
           console.warn(
-            '[WEBSOCKET] Nenhuma leitura recebida para o ponto:',
+            '[WEBSOCKET] O servidor não confirmou a sessão do ponto:',
             idPonto
           );
 
           fecharWebSocket();
-          setMostrarModalSemBalanca(true);
-        }, TEMPO_LIMITE_BALANCA_MS);
+          setStatus('idle');
+          setErro('Não foi possível confirmar o início da pesagem. Tente novamente.');
+        }, TEMPO_LIMITE_SESSAO_MS);
       };
 
       socket.onmessage = (evento) => {
@@ -289,12 +295,45 @@ export default function DoacaoScreen() {
             if (leitura.codigo === 'SESSAO_ATIVA') {
               setMostrarModalSessaoAtiva(true);
             } else {
+              setStatus('idle');
               setErro(
                 leitura.mensagem ||
                   'Não foi possível iniciar a pesagem neste ponto.'
               );
             }
 
+            return;
+          }
+
+          if (leitura.tipo === 'sessao_iniciada') {
+            if (leitura.pontoId !== idPonto) {
+              console.warn(
+                '[WEBSOCKET] Confirmação recebida para outro ponto:',
+                leitura.pontoId
+              );
+              return;
+            }
+
+            limparTimeoutSemLeitura();
+            setErro('');
+            setStatus('waiting');
+
+            timeoutSemLeituraRef.current = setTimeout(() => {
+              if (
+                !conexaoAtivaRef.current ||
+                socketRef.current !== socket
+              ) {
+                return;
+              }
+
+              console.warn(
+                '[WEBSOCKET] Nenhuma leitura recebida para o ponto:',
+                idPonto
+              );
+
+              fecharWebSocket();
+              setMostrarModalSemBalanca(true);
+            }, TEMPO_LIMITE_BALANCA_MS);
             return;
           }
 
@@ -403,6 +442,7 @@ export default function DoacaoScreen() {
 
         socketRef.current = null;
         conexaoAtivaRef.current = false;
+        setStatus('idle');
 
         console.log('[WEBSOCKET] Conexão perdida.');
 
@@ -412,6 +452,7 @@ export default function DoacaoScreen() {
       };
     } catch (erroConexao) {
       conexaoAtivaRef.current = false;
+      setStatus('idle');
 
       console.error(
         '[WEBSOCKET] Não foi possível conectar:',
@@ -447,7 +488,7 @@ export default function DoacaoScreen() {
     taraRef.current = null;
     leiturasTaraRef.current = [];
 
-    setStatus('waiting');
+    setStatus('connecting');
 
     console.log('[PESAGEM] Conectando ao WebSocket para:', pontoId);
 
@@ -539,20 +580,20 @@ export default function DoacaoScreen() {
 
   const textoStatus = !pontoId
     ? 'Ponto não identificado'
-    : status === 'idle'
-      ? 'Pronto para iniciar'
-      : status === 'waiting'
-        ? taraCapturada
+    : {
+        idle: 'Pronto para iniciar',
+        connecting: 'Verificando disponibilidade da balança',
+        waiting: taraCapturada
           ? 'Recipiente tarado. Adicione as tampinhas'
-          : 'Estabilizando recipiente para tara'
-        : status === 'ready'
-          ? 'Peso recebido'
-          : 'Doação confirmada';
+          : 'Estabilizando recipiente para tara',
+        ready: 'Peso recebido',
+        finished: 'Doação confirmada',
+      }[status];
 
   const corStatus =
     status === 'idle'
       ? 'bg-[#FFF0CC]'
-      : status === 'waiting'
+      : status === 'connecting' || status === 'waiting'
         ? 'bg-[#E6EDFA]'
         : status === 'ready'
           ? 'bg-[#DCE8FF]'
@@ -561,7 +602,7 @@ export default function DoacaoScreen() {
   const corTextoStatus =
     status === 'idle'
       ? 'text-[#704D00]'
-      : status === 'waiting'
+      : status === 'connecting' || status === 'waiting'
         ? 'text-[#244A80]'
         : status === 'ready'
           ? 'text-[#244A80]'

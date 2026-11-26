@@ -128,6 +128,21 @@ async function iniciarSessao(ws, pontoId) {
                 erro.message
             );
         });
+
+        ws.send(JSON.stringify({
+            tipo: "sessao_iniciada",
+            pontoId,
+        }), (erro) => {
+            if (erro) {
+                console.error(
+                    `Erro ao confirmar a sessão do ponto ${pontoId}:`,
+                    erro.message
+                );
+                if (ws.readyState !== WebSocket.CLOSED) {
+                    ws.close(1011, "Falha ao confirmar sessao.");
+                }
+            }
+        });
     } catch (erro) {
         if (client) {
             client.release(erro);
