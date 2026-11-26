@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const express = require("express");
@@ -28,10 +27,15 @@ pool.on("error", (erro) => {
     console.error("Erro inesperado no pool do PostgreSQL:", erro.message);
 });
 
-const CHAVE_SESSAO_GLOBAL = "pesagem:global";
+const TEMPO_MAXIMO_SESSAO_MS = 2 * 60 * 1000; // 2 minutos máximos por doador
+const INTERVALO_HEARTBEAT_MS = 10000; // Verifica conexão viva a cada 10s
 
-// Mantém a conexão local para encaminhar as leituras recebidas por HTTP.
+// Mantém a conexão local por pontoId para encaminhar as leituras recebidas por HTTP.
 const conexoesPorPonto = new Map();
+
+function gerarChaveSessao(pontoId) {
+    return `pesagem:${pontoId.trim()}`;
+}
 
 function enviarErroEFechar(ws, codigo, mensagem, closeCode, closeReason) {
     if (ws.readyState !== WebSocket.OPEN) {
@@ -50,34 +54,39 @@ function enviarErroEFechar(ws, codigo, mensagem, closeCode, closeReason) {
             console.error("Erro ao informar falha na sessão:", erro.message);
         }
 
-        if (ws.readyState !== WebSocket.CLOSED) {
-            ws.close(closeCode, closeReason);
-        }
+        // Pequeno atraso garante que o cliente receba o JSON antes do frame de close
+        setTimeout(() => {
+            if (ws.readyState !== WebSocket.CLOSED) {
+                ws.close(closeCode, closeReason);
+            }
+        }, 150);
     });
 }
 
-async function liberarBloqueio(client) {
+async function liberarBloqueio(client, chaveSessao) {
+    if (!client || !chaveSessao) return;
     try {
         await client.query(
             "SELECT pg_advisory_unlock(hashtextextended($1, 0))",
-            [CHAVE_SESSAO_GLOBAL]
+            [chaveSessao]
         );
         client.release();
     } catch (erro) {
-        console.error("Erro ao liberar a sessão global:", erro.message);
+        console.error(`Erro ao liberar a sessão (${chaveSessao}):`, erro.message);
         client.release(erro);
     }
 }
 
 async function iniciarSessao(ws, pontoId) {
     let client;
+    const chaveSessao = gerarChaveSessao(pontoId);
 
     try {
         client = await pool.connect();
 
         const resultado = await client.query(
             "SELECT pg_try_advisory_lock(hashtextextended($1, 0)) AS adquirido",
-            [CHAVE_SESSAO_GLOBAL]
+            [chaveSessao]
         );
 
         if (!resultado.rows[0].adquirido) {
@@ -88,35 +97,58 @@ async function iniciarSessao(ws, pontoId) {
             enviarErroEFechar(
                 ws,
                 "SESSAO_ATIVA",
-                "Outra pessoa já iniciou uma pesagem. Aguarde a finalização antes de tentar novamente.",
+                "Outra pessoa já iniciou uma pesagem neste ponto de coleta. Aguarde a finalização antes de tentar novamente.",
                 1008,
-                "Sessao de pesagem ja ativa."
+                "Sessao de pesagem ja ativa neste ponto."
             );
             return;
         }
 
         if (ws.readyState !== WebSocket.OPEN) {
-            await liberarBloqueio(client);
+            await liberarBloqueio(client, chaveSessao);
             return;
         }
 
         ws.pontoId = pontoId;
+        ws.chaveSessao = chaveSessao;
         ws.clienteBanco = client;
+        ws.isAlive = true;
         conexoesPorPonto.set(pontoId, ws);
 
+        ws.on("pong", () => {
+            ws.isAlive = true;
+        });
+
+        // Timeout máximo de segurança para não prender a balança do ponto
+        const timeoutSessao = setTimeout(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+                enviarErroEFechar(
+                    ws,
+                    "TEMPO_ESGOTADO",
+                    "Tempo limite de pesagem atingido neste ponto. Inicie novamente.",
+                    1008,
+                    "Tempo maximo de sessao excedido."
+                );
+            }
+        }, TEMPO_MAXIMO_SESSAO_MS);
+
         ws.once("close", () => {
+            clearTimeout(timeoutSessao);
+
             if (conexoesPorPonto.get(pontoId) === ws) {
                 conexoesPorPonto.delete(pontoId);
             }
 
             const clienteBanco = ws.clienteBanco;
+            const chave = ws.chaveSessao;
             ws.clienteBanco = null;
+            ws.chaveSessao = null;
 
             if (clienteBanco) {
-                void liberarBloqueio(clienteBanco);
+                void liberarBloqueio(clienteBanco, chave);
             }
 
-            console.log(`Sessao encerrada no ponto ${pontoId}.`);
+            console.log(`Sessao encerrada e lock liberado no ponto ${pontoId}.`);
         });
 
         ws.on("error", (erro) => {
@@ -141,7 +173,7 @@ async function iniciarSessao(ws, pontoId) {
             }
         });
 
-        console.log(`Sessao global iniciada no ponto ${pontoId}.`);
+        console.log(`Sessao iniciada no ponto ${pontoId} (${chaveSessao}).`);
     } catch (erro) {
         if (client) {
             client.release(erro);
@@ -154,21 +186,38 @@ async function iniciarSessao(ws, pontoId) {
         enviarErroEFechar(
             ws,
             "SESSAO_INDISPONIVEL",
-            "Não foi possível verificar se já existe uma pesagem ativa. Tente novamente.",
+            "Não foi possível verificar se já existe uma pesagem ativa neste ponto. Tente novamente.",
             1011,
             "Falha ao verificar sessao."
         );
     }
 }
 
-// Verifica se o serviço está funcionando
+// Heartbeat: derruba conexões mortas/fantasmas para liberar o lock do ponto
+const intervaloHeartbeat = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        if (ws.isAlive === false) {
+            console.log(`Encerrando conexao inativa no ponto ${ws.pontoId}...`);
+            return ws.terminate();
+        }
+
+        ws.isAlive = false;
+        ws.ping();
+    });
+}, INTERVALO_HEARTBEAT_MS);
+
+wss.on("close", () => {
+    clearInterval(intervaloHeartbeat);
+});
+
 app.get("/", async (req, res) => {
     try {
         await pool.query("SELECT 1");
         res.json({
             mensagem: "Servidor WebSocket funcionando!",
             banco: "conectado",
-            bloqueio: "global",
+            bloqueio: "por_ponto",
+            pontosAtivos: Array.from(conexoesPorPonto.keys()),
         });
     } catch (erro) {
         console.error("Erro ao verificar a conexão com o banco:", erro.message);
@@ -178,8 +227,6 @@ app.get("/", async (req, res) => {
     }
 });
 
-// Recebe uma leitura de peso via HTTP e transmite
-// somente ao cliente conectado ao ponto correspondente
 app.post("/peso", (req, res) => {
     const { pontoId, peso } = req.body;
 
@@ -195,47 +242,14 @@ app.post("/peso", (req, res) => {
         });
     }
 
+    const idLimpo = pontoId.trim();
+
     const leitura = {
         tipo: "leitura_peso",
-        pontoId,
+        pontoId: idLimpo,
         peso,
         atualizadoEm: new Date().toISOString(),
     };
 
     let clientesNotificados = 0;
-
-    const cliente = conexoesPorPonto.get(pontoId);
-
-    if (
-        cliente &&
-        cliente.readyState === WebSocket.OPEN
-    ) {
-        cliente.send(JSON.stringify(leitura));
-        clientesNotificados++;
-    }
-
-    res.json({
-        mensagem: "Leitura recebida.",
-        clientesNotificados,
-        leitura,
-    });
-});
-
-// A conexão WebSocket representa o pedido e a duração da sessão de pesagem.
-wss.on("connection", (ws, req) => {
-    const url = new URL(req.url, "http://localhost");
-    const pontoId = url.searchParams.get("pontoId");
-
-    if (!pontoId || !pontoId.trim()) {
-        ws.close(1008, "Informe o pontoId.");
-        return;
-    }
-
-    void iniciarSessao(ws, pontoId);
-});
-
-const PORT = process.env.PORT || 3000;
-
-server.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor iniciado na porta ${PORT}.`);
-});
+    const cliente = conexoesPorPonto.get(idLimpo);

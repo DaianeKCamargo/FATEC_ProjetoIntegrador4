@@ -21,15 +21,19 @@ type Status = 'idle' | 'waiting' | 'ready' | 'finished';
 
 type MensagemWebSocket =
   | {
-      tipo: 'leitura_peso';
-      pontoId: string;
-      peso: number;
-    }
+    tipo: 'sessao_iniciada';
+    pontoId: string;
+  }
   | {
-      tipo: 'erro';
-      codigo?: string;
-      mensagem?: string;
-    };
+    tipo: 'leitura_peso';
+    pontoId: string;
+    peso: number;
+  }
+  | {
+    tipo: 'erro';
+    codigo?: string;
+    mensagem?: string;
+  };
 
 async function salvarDoacao(pontoId: string, peso: number) {
   const resposta = await fetch(`${API_URL}/doacoes`, {
@@ -229,8 +233,7 @@ export default function DoacaoScreen() {
   function conectarWebSocket(idPonto: string) {
     fecharWebSocket();
 
-    const url =
-      `${WEBSOCKET_URL}/?pontoId=${encodeURIComponent(idPonto)}`;
+    const url = `${WEBSOCKET_URL}/?pontoId=${encodeURIComponent(idPonto)}`;
 
     try {
       const socket = new WebSocket(url);
@@ -239,24 +242,17 @@ export default function DoacaoScreen() {
       conexaoAtivaRef.current = true;
 
       socket.onopen = () => {
-        if (
-          !conexaoAtivaRef.current ||
-          socketRef.current !== socket
-        ) {
+        if (!conexaoAtivaRef.current || socketRef.current !== socket) {
           socket.close();
           return;
         }
 
         console.log('[WEBSOCKET] Conectado ao ponto:', idPonto);
-
         setErro('');
         setStatus('waiting');
 
         timeoutSemLeituraRef.current = setTimeout(() => {
-          if (
-            !conexaoAtivaRef.current ||
-            socketRef.current !== socket
-          ) {
+          if (!conexaoAtivaRef.current || socketRef.current !== socket) {
             return;
           }
 
@@ -266,15 +262,13 @@ export default function DoacaoScreen() {
           );
 
           fecharWebSocket();
+          setStatus('idle');
           setMostrarModalSemBalanca(true);
         }, TEMPO_LIMITE_BALANCA_MS);
       };
 
       socket.onmessage = (evento) => {
-        if (
-          !conexaoAtivaRef.current ||
-          socketRef.current !== socket
-        ) {
+        if (!conexaoAtivaRef.current || socketRef.current !== socket) {
           return;
         }
 
@@ -283,15 +277,22 @@ export default function DoacaoScreen() {
             evento.data as string
           ) as MensagemWebSocket;
 
+          if (leitura.tipo === 'sessao_iniciada') {
+            console.log('[WEBSOCKET] Sessão exclusiva garantida:', leitura.pontoId);
+            return;
+          }
+
           if (leitura.tipo === 'erro') {
             fecharWebSocket();
+            setStatus('idle');
 
             if (leitura.codigo === 'SESSAO_ATIVA') {
+              setErro('');
               setMostrarModalSessaoAtiva(true);
             } else {
               setErro(
                 leitura.mensagem ||
-                  'Não foi possível iniciar a pesagem neste ponto.'
+                'Não foi possível iniciar a pesagem neste ponto.'
               );
             }
 
@@ -299,6 +300,7 @@ export default function DoacaoScreen() {
           }
 
           if (
+            leitura.tipo !== 'leitura_peso' ||
             leitura.pontoId !== idPonto ||
             typeof leitura.peso !== 'number' ||
             !Number.isFinite(leitura.peso) ||
@@ -313,11 +315,7 @@ export default function DoacaoScreen() {
           const pesoBruto = leitura.peso;
 
           if (taraRef.current === null) {
-            const leituras = [
-              ...leiturasTaraRef.current,
-              pesoBruto,
-            ].slice(-5);
-
+            const leituras = [...leiturasTaraRef.current, pesoBruto].slice(-5);
             leiturasTaraRef.current = leituras;
 
             if (leituras.length < 5) {
@@ -326,13 +324,11 @@ export default function DoacaoScreen() {
                 leituras.length,
                 '/ 5'
               );
-
               return;
             }
 
             const menorPeso = Math.min(...leituras);
             const maiorPeso = Math.max(...leituras);
-
             const variacao = maiorPeso - menorPeso;
 
             if (variacao <= 0.005) {
@@ -341,15 +337,9 @@ export default function DoacaoScreen() {
                 leituras.length;
 
               taraRef.current = taraCalculada;
-
               setTaraCapturada(true);
               setErro('');
-
-              console.log(
-                '[TARA] Capturada com sucesso:',
-                taraCalculada,
-                'kg'
-              );
+              console.log('[TARA] Capturada com sucesso:', taraCalculada, 'kg');
             } else {
               console.log(
                 '[TARA] Peso ainda instável. Variação:',
@@ -361,20 +351,11 @@ export default function DoacaoScreen() {
             return;
           }
 
-          const pesoLiquido = Math.max(
-            0,
-            pesoBruto - taraRef.current
-          );
+          const pesoLiquido = Math.max(0, pesoBruto - taraRef.current);
 
           setPeso(pesoLiquido);
-
           setStatus(pesoLiquido > 0 ? 'ready' : 'waiting');
-
           setErro('');
-
-          console.log('[WEBSOCKET] Peso bruto:', pesoBruto, 'kg');
-          console.log('[WEBSOCKET] Tara:', taraRef.current, 'kg');
-          console.log('[WEBSOCKET] Peso líquido:', pesoLiquido, 'kg');
         } catch (erroMensagem) {
           console.error(
             '[WEBSOCKET] Erro ao processar mensagem:',
@@ -384,40 +365,36 @@ export default function DoacaoScreen() {
       };
 
       socket.onerror = (evento) => {
-        if (
-          !conexaoAtivaRef.current ||
-          socketRef.current !== socket
-        ) {
+        if (!conexaoAtivaRef.current || socketRef.current !== socket) {
           return;
         }
 
         console.error('[WEBSOCKET] Erro de conexão:', evento);
-
+        fecharWebSocket();
+        setStatus('idle');
         setErro('Erro na conexão com a balança em tempo real.');
       };
 
       socket.onclose = () => {
-        if (socketRef.current !== socket) {
+        if (!conexaoAtivaRef.current || socketRef.current !== socket) {
           return;
         }
 
         socketRef.current = null;
         conexaoAtivaRef.current = false;
+        limparTimeoutSemLeitura();
+        setStatus('idle');
 
-        console.log('[WEBSOCKET] Conexão perdida.');
-
+        console.log('[WEBSOCKET] Conexão encerrada inesperadamente.');
         setErro(
-          'A conexão com a balança foi encerrada. Volte e tente novamente.'
+          'A conexão com a balança foi encerrada. Clique em "Iniciar pesagem" para tentar novamente.'
         );
       };
     } catch (erroConexao) {
       conexaoAtivaRef.current = false;
+      setStatus('idle');
 
-      console.error(
-        '[WEBSOCKET] Não foi possível conectar:',
-        erroConexao
-      );
-
+      console.error('[WEBSOCKET] Não foi possível conectar:', erroConexao);
       setErro('Não foi possível conectar à balança em tempo real.');
     }
   }
@@ -524,13 +501,13 @@ export default function DoacaoScreen() {
 
   const endereco = ponto
     ? [
-        `${ponto.address.street}, ${ponto.address.number}`,
-        ponto.address.complement,
-        ponto.address.district,
-        ponto.address.city,
-      ]
-          .filter(Boolean)
-          .join(' • ')
+      `${ponto.address.street}, ${ponto.address.number}`,
+      ponto.address.complement,
+      ponto.address.district,
+      ponto.address.city,
+    ]
+      .filter(Boolean)
+      .join(' • ')
     : '';
 
   const enderecoCompleto = ponto
@@ -682,13 +659,12 @@ export default function DoacaoScreen() {
             className={`mt-5 flex-row items-center gap-2 rounded-full px-4 py-2 ${corStatus}`}
           >
             <View
-              className={`h-2.5 w-2.5 rounded-full ${
-                status === 'idle'
-                  ? 'bg-[#946400]'
-                  : status === 'finished'
-                    ? 'bg-[#594080]'
-                    : 'bg-[#315B9A]'
-              }`}
+              className={`h-2.5 w-2.5 rounded-full ${status === 'idle'
+                ? 'bg-[#946400]'
+                : status === 'finished'
+                  ? 'bg-[#594080]'
+                  : 'bg-[#315B9A]'
+                }`}
             />
 
             <Text className={`text-xs font-bold ${corTextoStatus}`}>
@@ -720,11 +696,10 @@ export default function DoacaoScreen() {
               !ponto ||
               carregandoPonto,
           }}
-          className={`mt-[22px] min-h-[54px] w-full items-center justify-center rounded-[14px] px-4 py-4 ${
-            status !== 'idle' || !pontoId || !ponto || carregandoPonto
-              ? 'bg-[#8297B8] opacity-70'
-              : 'bg-[#315B9A] active:bg-[#254775]'
-          }`}
+          className={`mt-[22px] min-h-[54px] w-full items-center justify-center rounded-[14px] px-4 py-4 ${status !== 'idle' || !pontoId || !ponto || carregandoPonto
+            ? 'bg-[#8297B8] opacity-70'
+            : 'bg-[#315B9A] active:bg-[#254775]'
+            }`}
           onPress={iniciarPesagem}
           disabled={
             status !== 'idle' ||
@@ -747,11 +722,10 @@ export default function DoacaoScreen() {
               disabled: confirmando,
               busy: confirmando,
             }}
-            className={`mt-[22px] min-h-[54px] w-full flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${
-              confirmando
-                ? 'bg-[#8297B8]'
-                : 'bg-[#315B9A] active:bg-[#254775]'
-            }`}
+            className={`mt-[22px] min-h-[54px] w-full flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${confirmando
+              ? 'bg-[#8297B8]'
+              : 'bg-[#315B9A] active:bg-[#254775]'
+              }`}
             onPress={confirmarDoacao}
             disabled={confirmando}
           >
@@ -781,39 +755,6 @@ export default function DoacaoScreen() {
       </ScrollView>
 
       {/* Modal: balança indisponível */}
-      <Modal
-        visible={mostrarModalSemBalanca}
-        transparent
-        animationType="fade"
-        onRequestClose={voltarAoPonto}
-      >
-        <View className="flex-1 items-center justify-center bg-black/50 px-6">
-          <View
-            accessibilityViewIsModal
-            className="w-full max-w-[420px] rounded-3xl border border-[#E9BFC4] bg-[#FCEBED] p-6 dark:border-[#74414A] dark:bg-[#44272D]"
-          >
-            <Text className="text-center text-xl font-extrabold text-[#A12B35] dark:text-[#FFB7BE]">
-              Balança indisponível neste ponto
-            </Text>
-
-            <Text className="mt-3 text-center text-sm leading-5 text-[#7D2630] dark:text-[#FFD9DD]">
-              Nenhuma leitura chegou em 5 segundos. A balança pode não estar
-              cadastrada, ligada ou conectada ao Wi-Fi.
-            </Text>
-
-            <Pressable
-              accessibilityRole="button"
-              className="mt-6 min-h-[50px] items-center justify-center rounded-xl bg-[#A12B35] px-4 py-3"
-              onPress={voltarAoPonto}
-            >
-              <Text className="font-bold text-white">
-                Voltar ao ponto
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
-
       {/* Modal: sessão ativa */}
       <Modal
         visible={mostrarModalSessaoAtiva}
@@ -831,8 +772,8 @@ export default function DoacaoScreen() {
             </Text>
 
             <Text className="mt-3 text-center text-sm leading-5 text-[#74400A] dark:text-[#FFE2B8]">
-              Outra pessoa já iniciou uma pesagem. Aguarde a finalização antes
-              de tentar novamente, mesmo que seja em outro ponto de coleta.
+              Outra pessoa já iniciou uma pesagem neste ponto de coleta.
+              Aguarde a finalização antes de tentar novamente.
             </Text>
 
             <Pressable
