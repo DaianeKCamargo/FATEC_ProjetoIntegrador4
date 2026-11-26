@@ -17,6 +17,7 @@
       }
     },
     "android": {
+      "package": "br.org.tampets.admmobile",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "softwareKeyboardLayoutMode": "resize",
