@@ -7,3 +7,14 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model registrosAnimais {
+  id          Int      @id @default(autoincrement())
+  data        DateTime @db.Date
+  tipoAnimal  String   @map("tipo_animal")
+  quantidade  Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("animals-registration")
+}

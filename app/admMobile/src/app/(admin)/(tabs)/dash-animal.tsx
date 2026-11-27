@@ -390,7 +390,7 @@ export default function DashAnimal() {
   if (loading) {
     return (
       <View className="flex-1 items-center justify-center bg-gray-50">
-        <ActivityIndicator size="large" color="#15803D" />
+        <ActivityIndicator size="large" color="#8754BF" />
         <Text className="mt-3 text-gray-600">
           Carregando registros...
         </Text>

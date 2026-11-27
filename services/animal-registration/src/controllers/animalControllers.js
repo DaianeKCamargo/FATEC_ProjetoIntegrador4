@@ -5,7 +5,12 @@ async function listar(req, res) {
         const dados = await model.listar();
         return res.status(200).json(dados);
     } catch (error) {
-        return res.status(500).json({ message: "Erro ao listar registros" });
+        console.error("Erro ao listar animais:", error);
+
+        return res.status(500).json({
+            message: "Erro ao listar registros",
+            error: error.message
+        });
     }
 }
 
