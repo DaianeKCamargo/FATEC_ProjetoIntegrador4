@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -21,19 +22,19 @@ type Status = 'idle' | 'waiting' | 'ready' | 'finished';
 
 type MensagemWebSocket =
   | {
-    tipo: 'sessao_iniciada';
-    pontoId: string;
-  }
+      tipo: 'sessao_iniciada';
+      pontoId: string;
+    }
   | {
-    tipo: 'leitura_peso';
-    pontoId: string;
-    peso: number;
-  }
+      tipo: 'leitura_peso';
+      pontoId: string;
+      peso: number;
+    }
   | {
-    tipo: 'erro';
-    codigo?: string;
-    mensagem?: string;
-  };
+      tipo: 'erro';
+      codigo?: string;
+      mensagem?: string;
+    };
 
 async function salvarDoacao(pontoId: string, peso: number) {
   const resposta = await fetch(`${API_URL}/doacoes`, {
@@ -126,12 +127,23 @@ function ProgressBar() {
 }
 
 export default function DoacaoScreen() {
-  const { pontoId: parametroPonto } =
-    useLocalSearchParams<{ pontoId?: string | string[] }>();
+  const {
+    pontoId: parametroPonto,
+    nomeDoador: parametroNome,
+  } = useLocalSearchParams<{
+    pontoId?: string | string[];
+    nomeDoador?: string | string[];
+  }>();
 
   const pontoId = Array.isArray(parametroPonto)
     ? parametroPonto[0]
     : parametroPonto;
+
+  const nomeDoador = (
+    Array.isArray(parametroNome)
+      ? parametroNome[0]
+      : parametroNome
+  )?.trim();
 
   const [ponto, setPonto] = useState<CollectionPoint | null>(null);
   const [carregandoPonto, setCarregandoPonto] = useState(true);
@@ -278,7 +290,10 @@ export default function DoacaoScreen() {
           ) as MensagemWebSocket;
 
           if (leitura.tipo === 'sessao_iniciada') {
-            console.log('[WEBSOCKET] Sessão exclusiva garantida:', leitura.pontoId);
+            console.log(
+              '[WEBSOCKET] Sessão exclusiva garantida:',
+              leitura.pontoId
+            );
             return;
           }
 
@@ -292,7 +307,7 @@ export default function DoacaoScreen() {
             } else {
               setErro(
                 leitura.mensagem ||
-                'Não foi possível iniciar a pesagem neste ponto.'
+                  'Não foi possível iniciar a pesagem neste ponto.'
               );
             }
 
@@ -339,7 +354,11 @@ export default function DoacaoScreen() {
               taraRef.current = taraCalculada;
               setTaraCapturada(true);
               setErro('');
-              console.log('[TARA] Capturada com sucesso:', taraCalculada, 'kg');
+              console.log(
+                '[TARA] Capturada com sucesso:',
+                taraCalculada,
+                'kg'
+              );
             } else {
               console.log(
                 '[TARA] Peso ainda instável. Variação:',
@@ -466,6 +485,7 @@ export default function DoacaoScreen() {
           pontoId,
           peso: String(pesoConfirmado),
           quantidadeTampinhas: String(quantidadeConfirmada),
+          nomeDoador: nomeDoador || '',
         },
       });
     } catch (erroSalvar) {
@@ -501,13 +521,13 @@ export default function DoacaoScreen() {
 
   const endereco = ponto
     ? [
-      `${ponto.address.street}, ${ponto.address.number}`,
-      ponto.address.complement,
-      ponto.address.district,
-      ponto.address.city,
-    ]
-      .filter(Boolean)
-      .join(' • ')
+        `${ponto.address.street}, ${ponto.address.number}`,
+        ponto.address.complement,
+        ponto.address.district,
+        ponto.address.city,
+      ]
+        .filter(Boolean)
+        .join(' • ')
     : '';
 
   const enderecoCompleto = ponto
@@ -659,12 +679,13 @@ export default function DoacaoScreen() {
             className={`mt-5 flex-row items-center gap-2 rounded-full px-4 py-2 ${corStatus}`}
           >
             <View
-              className={`h-2.5 w-2.5 rounded-full ${status === 'idle'
-                ? 'bg-[#946400]'
-                : status === 'finished'
-                  ? 'bg-[#594080]'
-                  : 'bg-[#315B9A]'
-                }`}
+              className={`h-2.5 w-2.5 rounded-full ${
+                status === 'idle'
+                  ? 'bg-[#946400]'
+                  : status === 'finished'
+                    ? 'bg-[#594080]'
+                    : 'bg-[#315B9A]'
+              }`}
             />
 
             <Text className={`text-xs font-bold ${corTextoStatus}`}>
@@ -696,10 +717,11 @@ export default function DoacaoScreen() {
               !ponto ||
               carregandoPonto,
           }}
-          className={`mt-[22px] min-h-[54px] w-full items-center justify-center rounded-[14px] px-4 py-4 ${status !== 'idle' || !pontoId || !ponto || carregandoPonto
-            ? 'bg-[#8297B8] opacity-70'
-            : 'bg-[#315B9A] active:bg-[#254775]'
-            }`}
+          className={`mt-[22px] min-h-[54px] w-full items-center justify-center rounded-[14px] px-4 py-4 ${
+            status !== 'idle' || !pontoId || !ponto || carregandoPonto
+              ? 'bg-[#8297B8] opacity-70'
+              : 'bg-[#315B9A] active:bg-[#254775]'
+          }`}
           onPress={iniciarPesagem}
           disabled={
             status !== 'idle' ||
@@ -722,10 +744,11 @@ export default function DoacaoScreen() {
               disabled: confirmando,
               busy: confirmando,
             }}
-            className={`mt-[22px] min-h-[54px] w-full flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${confirmando
-              ? 'bg-[#8297B8]'
-              : 'bg-[#315B9A] active:bg-[#254775]'
-              }`}
+            className={`mt-[22px] min-h-[54px] w-full flex-row items-center justify-center gap-3 rounded-[14px] px-4 py-4 ${
+              confirmando
+                ? 'bg-[#8297B8]'
+                : 'bg-[#315B9A] active:bg-[#254775]'
+            }`}
             onPress={confirmarDoacao}
             disabled={confirmando}
           >
@@ -743,12 +766,12 @@ export default function DoacaoScreen() {
 
         {/* Retorno ao ponto */}
         <Pressable
+          className="mt-3 w-full items-center rounded-2xl border border-[#C9DCF3] bg-[#E4EFFC] px-6 py-4 dark:border-[#2F4969] dark:bg-[#203955]"
           accessibilityRole="button"
-          accessibilityLabel="Voltar aos detalhes do ponto de coleta"
-          className="mt-4 min-h-[48px] w-full items-center justify-center rounded-xl py-3"
+          accessibilityLabel="Voltar ao início"
           onPress={voltarAoPonto}
         >
-          <Text className="text-sm font-bold text-[#315B9A] dark:text-[#A9C7FF]">
+          <Text className="text-sm font-bold text-[#24558F] dark:text-[#A9CCF5]">
             Voltar
           </Text>
         </Pressable>

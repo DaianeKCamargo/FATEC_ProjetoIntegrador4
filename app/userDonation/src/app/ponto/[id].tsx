@@ -1,10 +1,13 @@
+
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   Text,
+  TextInput,
   View,
   useColorScheme,
 } from 'react-native';
@@ -18,10 +21,9 @@ function ProgressBar() {
   return (
     <View className="mb-5 w-full">
       <View className="w-full rounded-[22px] border border-[#EBD2C3] bg-white px-4 py-4 dark:border-[#49362E] dark:bg-[#29211D] sm:px-6 sm:py-5 md:px-8">
-        {/* Logo */}
         <View className="mb-6 w-full items-center justify-center">
           <Image
-            source={require('../../../assets/images/logo.png')}
+            source={require('@/assets/images/logo.png')}
             style={{
               width: 185,
               height: 68,
@@ -31,9 +33,7 @@ function ProgressBar() {
           />
         </View>
 
-        {/* Etapas */}
         <View className="w-full flex-row items-start">
-          {/* Instrução */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#8B4B2B]">
               <Text className="text-sm font-bold text-white">1</Text>
@@ -43,12 +43,10 @@ function ProgressBar() {
             </Text>
           </View>
 
-          {/* Linha */}
           <View className="flex-1 pt-[17px]">
             <View className="h-[2px] w-full bg-[#EBD2C3] dark:bg-[#49362E]" />
           </View>
 
-          {/* Doação */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#EBD2C3] dark:bg-[#49362E]">
               <Text className="text-sm font-bold text-[#8B4B2B] dark:text-[#D8B7A5]">
@@ -60,12 +58,10 @@ function ProgressBar() {
             </Text>
           </View>
 
-          {/* Linha */}
           <View className="flex-1 pt-[17px]">
             <View className="h-[2px] w-full bg-[#EBD2C3] dark:bg-[#49362E]" />
           </View>
 
-          {/* Confirmação */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#EBD2C3] dark:bg-[#49362E]">
               <Text className="text-sm font-bold text-[#8B4B2B] dark:text-[#D8B7A5]">
@@ -140,6 +136,11 @@ export default function PontoScreen() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
 
+  // Identificação temporária do doador
+  const [modalIdentificacaoVisivel, setModalIdentificacaoVisivel] =
+    useState(true);
+  const [nomeDoador, setNomeDoador] = useState('');
+
   useEffect(() => {
     async function carregarPonto() {
       try {
@@ -170,6 +171,20 @@ export default function PontoScreen() {
     carregarPonto();
   }, [id]);
 
+  function confirmarIdentificacao() {
+    const nome = nomeDoador.trim();
+
+    if (!nome) return;
+
+    setNomeDoador(nome);
+    setModalIdentificacaoVisivel(false);
+  }
+
+  function naoQueroMeIdentificar() {
+    setNomeDoador('');
+    setModalIdentificacaoVisivel(false);
+  }
+
   function iniciarDoacao() {
     if (!ponto) return;
 
@@ -177,6 +192,7 @@ export default function PontoScreen() {
       pathname: '/doacao',
       params: {
         pontoId: String(ponto.id),
+        nomeDoador: nomeDoador,
       },
     });
   }
@@ -222,7 +238,6 @@ export default function PontoScreen() {
         showsVerticalScrollIndicator={false}
       >
         <View className="w-full">
-          {/* Logo e progresso */}
           <ProgressBar />
 
           {/* Cabeçalho do ponto */}
@@ -388,6 +403,77 @@ export default function PontoScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Popup de identificação */}
+      <Modal
+        visible={modalIdentificacaoVisivel}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => {}}
+      >
+        <View className="flex-1 items-center justify-center bg-black/55 px-4">
+          <View className="w-full max-w-[460px] rounded-[26px] border border-[#EBD2C3] bg-white p-6 dark:border-[#49362E] dark:bg-[#29211D] sm:p-8">
+            <View className="mb-5 items-center">
+              <View className="h-14 w-14 items-center justify-center rounded-full bg-[#F2DCCF] dark:bg-[#49362E]">
+                <Text className="text-2xl">🐶</Text>
+              </View>
+
+              <Text className="mt-4 text-center text-xl font-extrabold text-[#59331F] dark:text-[#F4E6DE] sm:text-2xl">
+                Quer se identificar?
+              </Text>
+
+              <Text className="mt-2 text-center text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA]">
+                Se quiser, informe seu nome para que possamos identificá-lo
+                na confirmação da sua doação.
+              </Text>
+            </View>
+
+            <Text className="mb-2 text-sm font-bold text-[#59331F] dark:text-[#F4E6DE]">
+              Seu nome
+            </Text>
+
+            <TextInput
+              value={nomeDoador}
+              onChangeText={setNomeDoador}
+              placeholder="Digite seu nome"
+              placeholderTextColor={isDark ? '#A18C80' : '#A18C80'}
+              autoCapitalize="words"
+              autoCorrect={false}
+              returnKeyType="done"
+              onSubmitEditing={confirmarIdentificacao}
+              accessibilityLabel="Nome do doador"
+              className="min-h-[52px] w-full rounded-xl border border-[#EBD2C3] bg-[#FFF9F5] px-4 text-base text-[#59331F] dark:border-[#49362E] dark:bg-[#171311] dark:text-[#F4E6DE]"
+            />
+
+            <Pressable
+              onPress={confirmarIdentificacao}
+              disabled={!nomeDoador.trim()}
+              accessibilityRole="button"
+              accessibilityState={{
+                disabled: !nomeDoador.trim(),
+              }}
+              className={`mt-5 min-h-[52px] w-full items-center justify-center rounded-xl px-5 py-4 ${
+                nomeDoador.trim()
+                  ? 'bg-[#8B4B2B] active:bg-[#704027]'
+                  : 'bg-[#B9A69B]'
+              }`}
+            >
+              <Text className="font-bold text-white">Enviar</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={naoQueroMeIdentificar}
+              accessibilityRole="button"
+              className="mt-3 min-h-[52px] w-full items-center justify-center rounded-xl border border-[#EBD2C3] bg-white px-5 py-4 dark:border-[#49362E] dark:bg-[#29211D]"
+            >
+              <Text className="font-semibold text-[#806B60] dark:text-[#C8B5AA]">
+                Não quero me identificar
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
