@@ -97,9 +97,15 @@ export default function SucessoDoacaoScreen() {
   const [carregandoPonto, setCarregandoPonto] = useState(true);
   const [erroPonto, setErroPonto] = useState('');
 
-  const pesoFormatado = Number(peso ?? 0)
+  const pesoNumerico = Number(peso ?? 0);
+
+  const pesoFormatado = pesoNumerico
     .toFixed(3)
     .replace('.', ',');
+
+  const quantidadeTampinhas = Math.round(
+    (pesoNumerico * 1000) / 2
+  );
 
   useEffect(() => {
     let ativo = true;
@@ -225,6 +231,27 @@ export default function SucessoDoacaoScreen() {
 
                 <Text className="ml-2 text-[17px] font-bold text-[#245D38] dark:text-[#B4E8BF]">
                   kg
+                </Text>
+              </View>
+
+              {/* Quantidade de tampinhas */}
+              <View className="mt-4 rounded-2xl border border-[#CDE6D3] bg-[#F0F8F1] p-4 dark:border-[#385C41] dark:bg-[#243D2B]">
+                <Text className="text-[12px] font-bold tracking-[1px] text-[#526758] dark:text-[#A9B9AC]">
+                  QUANTIDADE ESTIMADA DE TAMPINHAS
+                </Text>
+
+                <View className="mt-1 flex-row items-baseline">
+                  <Text className="text-[32px] font-extrabold text-[#176638] dark:text-[#A7E5B5]">
+                    {quantidadeTampinhas.toLocaleString('pt-BR')}
+                  </Text>
+
+                  <Text className="ml-2 text-[14px] font-semibold text-[#245D38] dark:text-[#B4E8BF]">
+                    tampinhas
+                  </Text>
+                </View>
+
+                <Text className="mt-1 text-xs text-[#526758] dark:text-[#A9B9AC]">
+                  Estimativa baseada em 2 gramas por tampinha.
                 </Text>
               </View>
 
