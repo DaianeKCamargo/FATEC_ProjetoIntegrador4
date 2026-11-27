@@ -1,4 +1,3 @@
-
 const { Pool } = require("pg");
 
 const pool = new Pool({
@@ -69,14 +68,16 @@ async function cadastrarRegistroManual(data, quantidade_kg) {
         `
         INSERT INTO "caps-registration" (
             data,
-            quantidade_kg
+            quantidade_kg,
+            updated_at
         )
-        VALUES ($1, $2)
+        VALUES ($1, $2, NOW())
         RETURNING
             id,
             data,
             quantidade_kg,
-            created_at
+            created_at,
+            updated_at
         `,
         [data, quantidade_kg]
     );
@@ -90,7 +91,83 @@ async function cadastrarRegistroManual(data, quantidade_kg) {
     };
 }
 
+// Edita um registro manual
+async function editarRegistroManual(id, data, quantidade_kg) {
+    const resultado = await pool.query(
+        `
+        UPDATE "caps-registration"
+        SET
+            data = $1,
+            quantidade_kg = $2,
+            updated_at = NOW()
+        WHERE
+            id = $3
+            AND deleted_at IS NULL
+        RETURNING
+            id,
+            data,
+            quantidade_kg,
+            created_at,
+            updated_at
+        `,
+        [data, quantidade_kg, id]
+    );
+
+    if (resultado.rows.length === 0) {
+        return null;
+    }
+
+    return {
+        ...resultado.rows[0],
+        origem: "MANUAL",
+        responsavel: "Administradora",
+        ponto_id: null,
+        nome_ponto: null
+    };
+}
+
+// Exclui um registro manual (exclusão lógica)
+async function excluirRegistroManual(id) {
+    const resultado = await pool.query(
+        `
+        UPDATE "caps-registration"
+        SET
+            deleted_at = NOW(),
+            updated_at = NOW()
+        WHERE
+            id = $1
+            AND deleted_at IS NULL
+        RETURNING id
+        `,
+        [id]
+    );
+
+    return resultado.rows.length > 0;
+}
+
+// Exclui um registro recebido pela balança (exclusão lógica)
+async function excluirRegistroBalanca(id) {
+    const resultado = await pool.query(
+        `
+        UPDATE doacoes
+        SET
+            deleted_at = NOW()
+        WHERE
+            id = $1
+            AND deleted_at IS NULL
+        RETURNING id
+        `,
+        [id]
+    );
+
+    return resultado.rows.length > 0;
+}
+
+// Exporta as funções
 module.exports = {
     listarTodosRegistros,
-    cadastrarRegistroManual
+    cadastrarRegistroManual,
+    editarRegistroManual,
+    excluirRegistroManual,
+    excluirRegistroBalanca
 };
