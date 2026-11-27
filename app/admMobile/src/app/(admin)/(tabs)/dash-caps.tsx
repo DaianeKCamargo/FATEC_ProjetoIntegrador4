@@ -6,6 +6,8 @@ import {
   TextInput,
   Pressable,
   View,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 
 type Donation = {
@@ -203,11 +205,17 @@ export default function DashRegistration() {
   );
 
   return (
-    <ScrollView
-      className="flex-1 bg-slate-100"
-      contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-      showsVerticalScrollIndicator={false}
+    <KeyboardAvoidingView
+      className="flex-1"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <ScrollView
+        className="flex-1 bg-slate-100"
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}
+      >
       <View className="gap-6">
 
         {/* CABEÇALHO */}
@@ -536,6 +544,7 @@ export default function DashRegistration() {
         </View>
 
       </View>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

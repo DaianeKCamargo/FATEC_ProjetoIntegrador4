@@ -7,6 +7,8 @@ import {
   TextInput,
   Pressable,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
   Alert,
   ActivityIndicator,
 } from 'react-native';
@@ -399,11 +401,16 @@ export default function DashAnimal() {
   }
 
   return (
-    <ScrollView
-      className="flex-1 bg-gray-50"
-      contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
-      keyboardShouldPersistTaps="handled"
+    <KeyboardAvoidingView
+      className="flex-1"
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <ScrollView
+        className="flex-1 bg-gray-50"
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
       <View className="mb-6">
         <Text className="text-2xl font-bold text-gray-800">
           Registro de animais
@@ -604,6 +611,7 @@ export default function DashAnimal() {
           Atualizar registros
         </Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }

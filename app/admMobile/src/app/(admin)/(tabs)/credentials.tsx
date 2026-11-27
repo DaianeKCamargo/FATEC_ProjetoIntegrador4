@@ -164,11 +164,16 @@ export default function Credentials() {
 
   return (
     <View className="flex-1 bg-[#F8FAFE]">
-      <ScrollView
+      <KeyboardAvoidingView
         className="flex-1"
-        contentContainerClassName="px-5 pt-9 pb-12"
-        keyboardShouldPersistTaps="handled"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-5 pt-9 pb-12"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
         {/* Cabeçalho */}
         <View className="mb-7 flex-row items-center justify-between">
           <View className="flex-1 pr-3">
@@ -286,7 +291,8 @@ export default function Credentials() {
             Novo administrador
           </Text>
         </TouchableOpacity>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Modal de cadastro e edição */}
       <Modal

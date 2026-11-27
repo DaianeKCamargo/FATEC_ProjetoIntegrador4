@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -298,7 +299,10 @@ export default function Settings() {
   }
 
   return (
-    <View className="flex-1 bg-[#F8FAFE]">
+    <KeyboardAvoidingView
+      className="flex-1 bg-[#F8FAFE]"
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
       <ScrollView
         className="flex-1"
         contentContainerClassName="px-5 pt-9 pb-12"
@@ -730,6 +734,6 @@ export default function Settings() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }

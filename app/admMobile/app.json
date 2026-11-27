@@ -19,8 +19,8 @@
     "android": {
       "package": "br.org.tampets.admmobile",
       "usesCleartextTraffic": true,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "softwareKeyboardLayoutMode": "resize",
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
