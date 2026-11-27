@@ -1,5 +1,6 @@
 const path = require("path");
 const dotenv = require("dotenv");
+const cors = require("cors");
 
 const dotenvResult = dotenv.config({
     path: path.join(__dirname, ".env")
@@ -15,9 +16,12 @@ const relatoriosAnimaisRoutes = require("./src/routes/animalRoutes");
 const app = express();
 const PORT = process.env.RELATORIO_ANIMAIS_PORT || 5503;
 
+// Configurações
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Verificar funcionamento da API
 app.get("/health", (req, res) => {
     res.status(200).json({
         status: "ok",
@@ -25,8 +29,10 @@ app.get("/health", (req, res) => {
     });
 });
 
+// Rotas de registro de animais
 app.use("/api/animals-registration", relatoriosAnimaisRoutes);
 
+// Rota não encontrada
 app.use((req, res) => {
     res.status(404).json({
         message: "Rota nao encontrada"
