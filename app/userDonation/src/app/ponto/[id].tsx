@@ -139,6 +139,11 @@ export default function PontoScreen() {
   // Identificação temporária do doador
   const [modalIdentificacaoVisivel, setModalIdentificacaoVisivel] =
     useState(true);
+
+  // Nome digitado no campo do popup
+  const [nomeDigitado, setNomeDigitado] = useState('');
+
+  // Nome confirmado pelo botão Enviar
   const [nomeDoador, setNomeDoador] = useState('');
 
   useEffect(() => {
@@ -172,7 +177,7 @@ export default function PontoScreen() {
   }, [id]);
 
   function confirmarIdentificacao() {
-    const nome = nomeDoador.trim();
+    const nome = nomeDigitado.trim();
 
     if (!nome) return;
 
@@ -181,6 +186,7 @@ export default function PontoScreen() {
   }
 
   function naoQueroMeIdentificar() {
+    setNomeDigitado('');
     setNomeDoador('');
     setModalIdentificacaoVisivel(false);
   }
@@ -240,29 +246,51 @@ export default function PontoScreen() {
         <View className="w-full">
           <ProgressBar />
 
-          {/* Cabeçalho do ponto */}
-          <View className="mb-5 w-full rounded-[26px] bg-[#8B4B2B] p-5 sm:p-7 md:p-8">
-            <Text className="text-xs font-bold uppercase tracking-[2px] text-[#F4D9C8]">
-              PONTO DE COLETA
-            </Text>
+          {/* Boas-vindas e informações do ponto */}
+          <View className="mb-5 w-full rounded-[22px] border border-[#EBD2C3] bg-white p-3 dark:border-[#49362E] dark:bg-[#29211D] sm:p-4">
 
-            <Text className="mt-3 text-2xl font-extrabold text-white sm:text-3xl md:text-4xl">
-              {ponto.name}
-            </Text>
+            {/* Boas-vindas */}
+            {nomeDoador && (
+              <>
+                <View className="px-2 py-3 sm:px-3">
+                  <Text className="text-xl font-extrabold text-[#59331F] dark:text-[#F4E6DE] sm:text-2xl">
+                    Bem-vindo, {nomeDoador}!
+                  </Text>
 
-            <Text className="mt-2 text-sm leading-6 text-white sm:text-base">
-              {endereco.street}, {endereco.number}
-              {endereco.complement ? ` - ${endereco.complement}` : ''}
-              {' • '}
-              {endereco.district}
-              {' • '}
-              {endereco.city}
-            </Text>
+                  <Text className="mt-1 text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA]">
+                    Que bom ter você participando dessa iniciativa!
+                  </Text>
+                </View>
 
-            <View className="mt-4 self-start rounded-full bg-[#F2DCCF] px-4 py-2">
-              <Text className="text-xs font-bold text-[#704027]">
-                Ponto aprovado
+                {/* Divisória */}
+                <View className="my-3 h-[1px] w-full bg-[#EBD2C3] dark:bg-[#49362E]" />
+              </>
+            )}
+
+            {/* Informações do ponto */}
+            <View className="w-full rounded-[18px] bg-[#8B4B2B] p-5 sm:p-7">
+              <Text className="text-xs font-bold uppercase tracking-[2px] text-[#F4D9C8]">
+                PONTO DE COLETA
               </Text>
+
+              <Text className="mt-3 text-2xl font-extrabold text-white sm:text-3xl md:text-4xl">
+                {ponto.name}
+              </Text>
+
+              <Text className="mt-2 text-sm leading-6 text-white sm:text-base">
+                {endereco.street}, {endereco.number}
+                {endereco.complement ? ` - ${endereco.complement}` : ''}
+                {' • '}
+                {endereco.district}
+                {' • '}
+                {endereco.city}
+              </Text>
+
+              <View className="mt-4 self-start rounded-full bg-[#F2DCCF] px-4 py-2">
+                <Text className="text-xs font-bold text-[#704027]">
+                  Ponto aprovado
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -297,20 +325,27 @@ export default function PontoScreen() {
             </Text>
           </View>
 
-          {/* Introdução */}
-          <View className="mb-5 w-full">
-            <Text className="text-xl font-extrabold text-[#59331F] dark:text-[#F4E6DE] sm:text-2xl">
-              Sua doação começa aqui!
-            </Text>
-
-            <Text className="mt-2 text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA] sm:text-base">
-              Siga as instruções abaixo para preparar suas tampinhas e
-              registrar sua contribuição.
-            </Text>
-          </View>
-
-          {/* Instruções */}
+          {/* Introdução e instruções */}
           <View className="mb-5 w-full rounded-[22px] border border-[#EBD2C3] bg-white p-5 dark:border-[#49362E] dark:bg-[#29211D] sm:p-6">
+
+            {/* Introdução */}
+            <View className="mb-5">
+              <Text className="text-xl font-extrabold text-[#59331F] dark:text-[#F4E6DE] sm:text-2xl">
+                {nomeDoador
+                  ? `${nomeDoador}, sua doação começa aqui!`
+                  : 'Sua doação começa aqui!'}
+              </Text>
+
+              <Text className="mt-2 text-sm leading-6 text-[#806B60] dark:text-[#C8B5AA] sm:text-base">
+                Siga as instruções abaixo para preparar suas tampinhas e
+                registrar sua contribuição.
+              </Text>
+            </View>
+
+            {/* Divisória */}
+            <View className="mb-5 h-[1px] w-full bg-[#EBD2C3] dark:bg-[#49362E]" />
+
+            {/* Etapas da doação */}
             <Text className="mb-5 text-lg font-bold text-[#59331F] dark:text-[#F4E6DE] sm:text-xl">
               Como realizar sua doação
             </Text>
@@ -386,18 +421,6 @@ export default function PontoScreen() {
             </Text>
           </Pressable>
 
-          {/* Voltar */}
-          <Pressable
-            onPress={voltarInicio}
-            className="mt-3 w-full items-center rounded-2xl border border-[#EBD2C3] bg-white px-6 py-4 dark:border-[#49362E] dark:bg-[#29211D]"
-            accessibilityRole="button"
-            accessibilityLabel="Voltar ao início"
-          >
-            <Text className="font-semibold text-[#806B60] dark:text-[#C8B5AA]">
-              Voltar ao início
-            </Text>
-          </Pressable>
-
           <Text className="mt-6 text-center text-xs text-[#A18C80] dark:text-[#9F8C82]">
             Cada tampinha conta!
           </Text>
@@ -434,8 +457,8 @@ export default function PontoScreen() {
             </Text>
 
             <TextInput
-              value={nomeDoador}
-              onChangeText={setNomeDoador}
+              value={nomeDigitado}
+              onChangeText={setNomeDigitado}
               placeholder="Digite seu nome"
               placeholderTextColor={isDark ? '#A18C80' : '#A18C80'}
               autoCapitalize="words"
@@ -448,13 +471,13 @@ export default function PontoScreen() {
 
             <Pressable
               onPress={confirmarIdentificacao}
-              disabled={!nomeDoador.trim()}
+              disabled={!nomeDigitado.trim()}
               accessibilityRole="button"
               accessibilityState={{
-                disabled: !nomeDoador.trim(),
+                disabled: !nomeDigitado.trim(),
               }}
               className={`mt-5 min-h-[52px] w-full items-center justify-center rounded-xl px-5 py-4 ${
-                nomeDoador.trim()
+                nomeDigitado.trim()
                   ? 'bg-[#8B4B2B] active:bg-[#704027]'
                   : 'bg-[#B9A69B]'
               }`}

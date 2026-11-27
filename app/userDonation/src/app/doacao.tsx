@@ -61,7 +61,6 @@ function ProgressBar() {
   return (
     <View className="mb-5 w-full">
       <View className="w-full rounded-[22px] border border-[#D9E2F1] bg-white px-4 py-4 dark:border-[#37445B] dark:bg-[#1F2937] sm:px-6 sm:py-5 md:px-8">
-        {/* Logo */}
         <View className="mb-6 w-full items-center justify-center">
           <Image
             source={require('@/assets/images/logo.png')}
@@ -74,9 +73,7 @@ function ProgressBar() {
           />
         </View>
 
-        {/* Etapas */}
         <View className="w-full flex-row items-start">
-          {/* Instrução */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#315B9A]">
               <Text className="text-sm font-bold text-white">1</Text>
@@ -87,12 +84,10 @@ function ProgressBar() {
             </Text>
           </View>
 
-          {/* Linha 1 */}
           <View className="flex-1 pt-[17px]">
             <View className="h-[2px] w-full bg-[#315B9A]" />
           </View>
 
-          {/* Doação */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#315B9A]">
               <Text className="text-sm font-bold text-white">2</Text>
@@ -103,12 +98,10 @@ function ProgressBar() {
             </Text>
           </View>
 
-          {/* Linha 2 */}
           <View className="flex-1 pt-[17px]">
             <View className="h-[2px] w-full bg-[#D9E2F1] dark:bg-[#37445B]" />
           </View>
 
-          {/* Confirmação */}
           <View className="flex-1 items-center">
             <View className="h-9 w-9 items-center justify-center rounded-full bg-[#D9E2F1] dark:bg-[#37445B]">
               <Text className="text-sm font-bold text-[#315B9A] dark:text-[#A9C7FF]">
@@ -275,6 +268,10 @@ export default function DoacaoScreen() {
 
           fecharWebSocket();
           setStatus('idle');
+          setTaraCapturada(false);
+          setErro(
+            'Não foi possível localizar a balança. Verifique se ela está ligada e conectada e tente novamente.'
+          );
           setMostrarModalSemBalanca(true);
         }, TEMPO_LIMITE_BALANCA_MS);
       };
@@ -302,7 +299,9 @@ export default function DoacaoScreen() {
             setStatus('idle');
 
             if (leitura.codigo === 'SESSAO_ATIVA') {
-              setErro('');
+              setErro(
+                'Outra pessoa já iniciou uma pesagem neste ponto de coleta. Aguarde a finalização antes de tentar novamente.'
+              );
               setMostrarModalSessaoAtiva(true);
             } else {
               setErro(
@@ -354,6 +353,7 @@ export default function DoacaoScreen() {
               taraRef.current = taraCalculada;
               setTaraCapturada(true);
               setErro('');
+
               console.log(
                 '[TARA] Capturada com sucesso:',
                 taraCalculada,
@@ -536,33 +536,89 @@ export default function DoacaoScreen() {
 
   const textoStatus = !pontoId
     ? 'Ponto não identificado'
-    : status === 'idle'
-      ? 'Pronto para iniciar'
-      : status === 'waiting'
-        ? taraCapturada
-          ? 'Recipiente tarado. Adicione as tampinhas'
-          : 'Estabilizando recipiente para tara'
-        : status === 'ready'
-          ? 'Peso recebido'
-          : 'Doação confirmada';
+    : erro
+      ? 'Ocorreu um erro'
+      : status === 'idle'
+        ? 'Pronto para iniciar'
+        : status === 'waiting'
+          ? taraCapturada
+            ? 'Recipiente tarado. Adicione as tampinhas'
+            : 'Tarando recipiente'
+          : status === 'ready'
+            ? 'Peso calculado'
+            : 'Doação confirmada';
 
-  const corStatus =
-    status === 'idle'
-      ? 'bg-[#FFF0CC]'
-      : status === 'waiting'
-        ? 'bg-[#E6EDFA]'
-        : status === 'ready'
-          ? 'bg-[#DCE8FF]'
-          : 'bg-[#E8E1FA]';
+  const corStatus = erro
+    ? 'bg-[#FCEBED] dark:bg-[#44272D]'
+    : status === 'waiting'
+      ? 'bg-[#FFF0CC] dark:bg-[#49391F]'
+      : status === 'ready' || status === 'finished'
+        ? 'bg-[#DCFCE7] dark:bg-[#173D2A]'
+        : 'bg-[#E6EDFA] dark:bg-[#203955]';
 
-  const corTextoStatus =
-    status === 'idle'
-      ? 'text-[#704D00]'
-      : status === 'waiting'
-        ? 'text-[#244A80]'
-        : status === 'ready'
-          ? 'text-[#244A80]'
-          : 'text-[#594080]';
+  const corTextoStatus = erro
+    ? 'text-[#A12B35] dark:text-[#FFB7BE]'
+    : status === 'waiting'
+      ? 'text-[#946400] dark:text-[#FFD477]'
+      : status === 'ready' || status === 'finished'
+        ? 'text-[#166534] dark:text-[#86EFAC]'
+        : 'text-[#244A80] dark:text-[#A9C7FF]';
+
+  const corIndicadorStatus = erro
+    ? 'bg-[#DC2626]'
+    : status === 'waiting'
+      ? 'bg-[#D69E00]'
+      : status === 'ready' || status === 'finished'
+        ? 'bg-[#16A34A]'
+        : 'bg-[#315B9A]';
+
+  const tituloOrientacao = erro
+    ? 'Não foi possível realizar a pesagem'
+    : status === 'waiting'
+      ? taraCapturada
+        ? 'Agora adicione as tampinhas'
+        : 'Coloque somente o recipiente vazio'
+      : status === 'ready'
+        ? 'Pesagem concluída'
+        : status === 'finished'
+          ? 'Doação confirmada'
+          : 'Prepare o recipiente';
+
+  const descricaoOrientacao = erro
+    ? erro
+    : status === 'waiting'
+      ? taraCapturada
+        ? 'O recipiente já foi tarado. Agora coloque as tampinhas dentro dele para registrar o peso da sua doação.'
+        : 'Coloque apenas o recipiente vazio sobre a balança. Não adicione as tampinhas ainda. Aguarde a estabilização do peso para que a tara seja calculada corretamente.'
+      : status === 'ready'
+        ? 'O peso das tampinhas foi calculado. Confira o valor apresentado e confirme sua doação.'
+        : status === 'finished'
+          ? 'Sua doação foi registrada com sucesso.'
+          : 'Antes de iniciar a pesagem, coloque somente o recipiente vazio sobre a balança. As tampinhas devem ser adicionadas somente depois que a tara for concluída.';
+
+  const corFundoOrientacao = erro
+    ? 'border-[#E9BFC4] bg-[#FCEBED] dark:border-[#74414A] dark:bg-[#44272D]'
+    : status === 'waiting'
+      ? 'border-[#E8C875] bg-[#FFF8E6] dark:border-[#795F2D] dark:bg-[#3D3421]'
+      : status === 'ready' || status === 'finished'
+        ? 'border-[#B8DFC2] bg-[#EAF7ED] dark:border-[#345D40] dark:bg-[#1C3525]'
+        : 'border-[#C9DCF3] bg-[#EAF1FC] dark:border-[#2F4969] dark:bg-[#203955]';
+
+  const corTituloOrientacao = erro
+    ? 'text-[#A12B35] dark:text-[#FFB7BE]'
+    : status === 'waiting'
+      ? 'text-[#946400] dark:text-[#FFD477]'
+      : status === 'ready' || status === 'finished'
+        ? 'text-[#166534] dark:text-[#86EFAC]'
+        : 'text-[#244A80] dark:text-[#A9C7FF]';
+
+  const corDescricaoOrientacao = erro
+    ? 'text-[#8F3038] dark:text-[#FFD0D4]'
+    : status === 'waiting'
+      ? 'text-[#765719] dark:text-[#F5DFA8]'
+      : status === 'ready' || status === 'finished'
+        ? 'text-[#245C35] dark:text-[#C1EACB]'
+        : 'text-[#344F78] dark:text-[#C3D6F5]';
 
   return (
     <SafeAreaView className="flex-1 bg-[#F3F6FC] dark:bg-[#111827]">
@@ -571,10 +627,8 @@ export default function DoacaoScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerClassName="w-full flex-grow px-2 pt-3 pb-8 sm:px-3 md:px-4"
       >
-        {/* Logo e barra de progresso */}
         <ProgressBar />
 
-        {/* Cabeçalho */}
         <Text
           accessibilityRole="header"
           className="text-center text-[28px] font-extrabold text-[#202B45] dark:text-[#F1F5FF]"
@@ -679,13 +733,7 @@ export default function DoacaoScreen() {
             className={`mt-5 flex-row items-center gap-2 rounded-full px-4 py-2 ${corStatus}`}
           >
             <View
-              className={`h-2.5 w-2.5 rounded-full ${
-                status === 'idle'
-                  ? 'bg-[#946400]'
-                  : status === 'finished'
-                    ? 'bg-[#594080]'
-                    : 'bg-[#315B9A]'
-              }`}
+              className={`h-2.5 w-2.5 rounded-full ${corIndicadorStatus}`}
             />
 
             <Text className={`text-xs font-bold ${corTextoStatus}`}>
@@ -694,17 +742,29 @@ export default function DoacaoScreen() {
           </View>
         </View>
 
-        {/* Mensagens de erro */}
-        {!!erro && (
-          <View
-            accessibilityRole="alert"
-            className="mt-4 w-full rounded-xl border border-[#E9BFC4] bg-[#FCEBED] p-4 dark:border-[#74414A] dark:bg-[#44272D]"
-          >
-            <Text className="text-center text-sm font-medium leading-5 text-[#A12B35] dark:text-[#FFB7BE]">
-              {erro}
+        {/* Orientações da pesagem */}
+        <View
+          accessibilityLiveRegion="polite"
+          className={`mt-4 w-full rounded-2xl border p-5 ${corFundoOrientacao}`}
+        >
+          <View className="flex-row items-center gap-2">
+            <View
+              className={`h-2.5 w-2.5 rounded-full ${corIndicadorStatus}`}
+            />
+
+            <Text
+              className={`flex-1 text-base font-extrabold ${corTituloOrientacao}`}
+            >
+              {tituloOrientacao}
             </Text>
           </View>
-        )}
+
+          <Text
+            className={`mt-3 text-sm leading-[22px] ${corDescricaoOrientacao}`}
+          >
+            {descricaoOrientacao}
+          </Text>
+        </View>
 
         {/* Botão iniciar pesagem */}
         <Pressable
@@ -752,9 +812,7 @@ export default function DoacaoScreen() {
             onPress={confirmarDoacao}
             disabled={confirmando}
           >
-            {confirmando && (
-              <ActivityIndicator color="#FFFFFF" />
-            )}
+            {confirmando && <ActivityIndicator color="#FFFFFF" />}
 
             <Text className="text-base font-bold text-white">
               {confirmando
@@ -777,7 +835,40 @@ export default function DoacaoScreen() {
         </Pressable>
       </ScrollView>
 
-      {/* Modal: balança indisponível */}
+      {/* Modal: balança não encontrada */}
+      <Modal
+        visible={mostrarModalSemBalanca}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMostrarModalSemBalanca(false)}
+      >
+        <View className="flex-1 items-center justify-center bg-black/50 px-6">
+          <View
+            accessibilityViewIsModal
+            className="w-full max-w-[420px] rounded-3xl border border-[#E9BFC4] bg-[#FCEBED] p-6 dark:border-[#74414A] dark:bg-[#44272D]"
+          >
+            <Text className="text-center text-xl font-extrabold text-[#A12B35] dark:text-[#FFB7BE]">
+              Balança não encontrada
+            </Text>
+
+            <Text className="mt-3 text-center text-sm leading-5 text-[#8F3038] dark:text-[#FFD0D4]">
+              Não recebemos nenhuma leitura da balança. Verifique se ela está
+              ligada e conectada ao sistema e tente novamente.
+            </Text>
+
+            <Pressable
+              accessibilityRole="button"
+              className="mt-6 min-h-[50px] items-center justify-center rounded-xl bg-[#B8323C] px-4 py-3"
+              onPress={() => setMostrarModalSemBalanca(false)}
+            >
+              <Text className="font-bold text-white">
+                Entendi
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
       {/* Modal: sessão ativa */}
       <Modal
         visible={mostrarModalSessaoAtiva}
