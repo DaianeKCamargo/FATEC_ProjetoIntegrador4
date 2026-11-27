@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
@@ -9,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
 import type { CollectionPoint } from '@/constants/collection-points';
 import { getCollectionPoint } from '@/services/collection-points';
 
@@ -73,15 +75,23 @@ function ProgressBar() {
 }
 
 export default function SucessoDoacaoScreen() {
-  const { pontoId: parametroPonto, peso } =
-    useLocalSearchParams<{
-      pontoId?: string | string[];
-      peso?: string;
-    }>();
+  const {
+    pontoId: parametroPonto,
+    peso,
+    nomeDoador: parametroNome,
+  } = useLocalSearchParams<{
+    pontoId?: string | string[];
+    peso?: string;
+    nomeDoador?: string | string[];
+  }>();
 
   const pontoId = Array.isArray(parametroPonto)
     ? parametroPonto[0]
     : parametroPonto;
+
+  const nomeDoador = (
+    Array.isArray(parametroNome) ? parametroNome[0] : parametroNome
+  )?.trim();
 
   const [ponto, setPonto] = useState<CollectionPoint | null>(null);
   const [carregandoPonto, setCarregandoPonto] = useState(true);
@@ -189,8 +199,9 @@ export default function SucessoDoacaoScreen() {
             </Text>
 
             <Text className="mt-2.5 max-w-[330px] text-center text-[15px] leading-[23px] text-[#43594A] dark:text-[#C0CEC3]">
-              Obrigado por fazer parte dessa mudança. Cada tampinha conta para
-              um futuro melhor!
+              {nomeDoador
+                ? `Obrigado, ${nomeDoador}, por fazer parte dessa mudança. Cada tampinha conta para um futuro melhor!`
+                : 'Obrigado por fazer parte dessa mudança. Cada tampinha conta para um futuro melhor!'}
             </Text>
           </View>
 
@@ -301,8 +312,9 @@ export default function SucessoDoacaoScreen() {
               </Text>
 
               <Text className="mt-1.5 text-[14px] leading-[21px] text-[#43594A] dark:text-[#C0CEC3]">
-                Sua contribuição ajuda a transformar tampinhas recicladas em recursos para financiar a castração de animais,
-                 promovendo o bem-estar animal em situações de vulnerabilidade.
+                Sua contribuição ajuda a transformar tampinhas recicladas em
+                recursos para financiar a castração de animais, promovendo o
+                bem-estar animal em situações de vulnerabilidade.
               </Text>
             </View>
           </View>
