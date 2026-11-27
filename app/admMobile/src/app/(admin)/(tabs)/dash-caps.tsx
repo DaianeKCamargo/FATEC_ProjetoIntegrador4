@@ -31,6 +31,7 @@ export default function DashRegistration() {
   const [doacoes, setDoacoes] = useState<Donation[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   const [data, setData] = useState('2026-11-09');
   const [peso, setPeso] = useState('');
@@ -116,7 +117,7 @@ export default function DashRegistration() {
     setFiltroResponsavel('TODOS');
   };
 
-  const salvarDoacao = () => {
+  const salvarDoacao = async () => {
     const pesoNumerico = Number(peso.replace(',', '.'));
 
     if (!data || !peso || !Number.isFinite(pesoNumerico) || pesoNumerico <= 0) {
@@ -124,33 +125,50 @@ export default function DashRegistration() {
       return;
     }
 
-    if (editandoId !== null) {
-      setDoacoes((anteriores) =>
-        anteriores.map((item) =>
-          item.id === editandoId
-            ? { ...item, data, quantidadeKg: pesoNumerico }
-            : item
-        )
-      );
+    try {
+      setSalvando(true);
+
+      if (editandoId !== null) {
+        await capsService.editarRegistro(
+          editandoId,
+          data,
+          pesoNumerico
+        );
+
+        Alert.alert('Sucesso', 'Registro atualizado com sucesso!');
+      } else {
+        await capsService.cadastrarRegistro(
+          data,
+          pesoNumerico
+        );
+
+        Alert.alert('Sucesso', 'Doação cadastrada com sucesso!');
+      }
 
       setEditandoId(null);
-    } else {
-      const novaDoacao: Donation = {
-        id: Date.now(),
-        data,
-        quantidadeKg: pesoNumerico,
-        tipo: 'MANUAL',
-        responsavel: 'Administradora',
-      };
+      setPeso('');
 
-      setDoacoes((anteriores) => [novaDoacao, ...anteriores]);
+      await carregarRegistros();
+
+    } catch (error) {
+      console.error('Erro ao salvar registro:', error);
+
+      Alert.alert(
+        'Erro',
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível salvar o registro.'
+      );
+    } finally {
+      setSalvando(false);
     }
-
-    setPeso('');
-    Alert.alert('Sucesso', 'Registro atualizado na demonstração.');
   };
 
   const editarDoacao = (item: Donation) => {
+    if (item.tipo !== 'MANUAL') {
+      return;
+    }
+
     setEditandoId(item.id);
     setData(item.data);
     setPeso(String(item.quantidadeKg));
@@ -162,19 +180,47 @@ export default function DashRegistration() {
     setData('2026-11-09');
   };
 
-  const excluirDoacao = (id: number | string) => {
+  const excluirDoacao = (item: Donation) => {
     Alert.alert(
       'Excluir doação',
       'Deseja realmente excluir este registro?',
       [
-        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
         {
           text: 'Excluir',
           style: 'destructive',
-          onPress: () =>
-            setDoacoes((anteriores) =>
-              anteriores.filter((item) => item.id !== id)
-            ),
+          onPress: async () => {
+            try {
+              await capsService.excluirRegistro(
+                item.id,
+                item.tipo
+              );
+
+              if (editandoId === item.id && item.tipo === 'MANUAL') {
+                cancelarEdicao();
+              }
+
+              await carregarRegistros();
+
+              Alert.alert(
+                'Sucesso',
+                'Registro excluído com sucesso!'
+              );
+
+            } catch (error) {
+              console.error('Erro ao excluir registro:', error);
+
+              Alert.alert(
+                'Erro',
+                error instanceof Error
+                  ? error.message
+                  : 'Não foi possível excluir o registro.'
+              );
+            }
+          },
         },
       ]
     );
@@ -319,10 +365,16 @@ export default function DashRegistration() {
 
               <Pressable
                 onPress={salvarDoacao}
-                className="items-center rounded-xl bg-amber-500 py-4 active:bg-amber-600"
+                disabled={salvando}
+                className={`items-center rounded-xl py-4 ${salvando ? 'bg-amber-300' : 'bg-amber-500 active:bg-amber-600'
+                  }`}
               >
                 <Text className="font-bold text-white">
-                  {editandoId !== null ? 'Salvar alterações' : 'Cadastrar doação'}
+                  {salvando
+                    ? 'Salvando...'
+                    : editandoId !== null
+                      ? 'Salvar alterações'
+                      : 'Cadastrar doação'}
                 </Text>
               </Pressable>
 
@@ -385,14 +437,14 @@ export default function DashRegistration() {
                   key={opcao.value}
                   onPress={() => setFiltroResponsavel(opcao.value)}
                   className={`rounded-full px-4 py-2 ${filtroResponsavel === opcao.value
-                      ? 'bg-blue-600'
-                      : 'bg-slate-100'
+                    ? 'bg-blue-600'
+                    : 'bg-slate-100'
                     }`}
                 >
                   <Text
                     className={`text-xs font-semibold ${filtroResponsavel === opcao.value
-                        ? 'text-white'
-                        : 'text-slate-600'
+                      ? 'text-white'
+                      : 'text-slate-600'
                       }`}
                   >
                     {opcao.label}
@@ -454,8 +506,8 @@ export default function DashRegistration() {
                   <View
                     key={`${item.tipo}-${item.id}`}
                     className={`rounded-2xl border-l-4 bg-white p-5 shadow-sm ${manual
-                        ? 'border-l-blue-500'
-                        : 'border-l-emerald-500'
+                      ? 'border-l-blue-500'
+                      : 'border-l-emerald-500'
                       }`}
                   >
                     <View className="flex-row items-center justify-between">
@@ -519,17 +571,19 @@ export default function DashRegistration() {
                     </View>
 
                     <View className="mt-4 flex-row gap-3">
-                      <Pressable
-                        onPress={() => editarDoacao(item)}
-                        className="flex-1 items-center rounded-xl bg-blue-50 py-3"
-                      >
-                        <Text className="font-bold text-blue-700">
-                          Editar
-                        </Text>
-                      </Pressable>
+                      {manual && (
+                        <Pressable
+                          onPress={() => editarDoacao(item)}
+                          className="flex-1 items-center rounded-xl bg-blue-50 py-3"
+                        >
+                          <Text className="font-bold text-blue-700">
+                            Editar
+                          </Text>
+                        </Pressable>
+                      )}
 
                       <Pressable
-                        onPress={() => excluirDoacao(item.id)}
+                        onPress={() => excluirDoacao(item)}
                         className="flex-1 items-center rounded-xl bg-red-50 py-3"
                       >
                         <Text className="font-bold text-red-600">
