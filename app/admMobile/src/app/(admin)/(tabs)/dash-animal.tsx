@@ -560,8 +560,8 @@ export default function DashAnimal() {
                       {item.tipoAnimal}
                     </Text>
 
-                    <View className="rounded-full bg-green-100 px-3 py-1">
-                      <Text className="text-xs font-semibold text-green-800">
+                    <View className="rounded-full bg-[#8754BF] px-3 py-1">
+                      <Text className="text-xs font-semibold text-white">
                         Registro #{item.id}
                       </Text>
                     </View>
