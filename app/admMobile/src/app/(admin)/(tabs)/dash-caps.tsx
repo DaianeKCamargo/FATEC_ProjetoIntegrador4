@@ -20,6 +20,16 @@ type Donation = {
   responsavel: string;
 };
 
+type CampoProps = {
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  keyboardType?: 'default' | 'numeric' | 'decimal-pad';
+};
+
+const COR_PRINCIPAL = '#8754bf';
+
 const converterUnidades = (kg: number) => Math.round(kg * 500);
 
 const formatarData = (data: string) => {
@@ -27,17 +37,58 @@ const formatarData = (data: string) => {
   return `${dia}/${mes}/${ano}`;
 };
 
+function Campo({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  keyboardType = 'default',
+}: CampoProps) {
+  return (
+    <View className="flex-1 gap-2">
+      <Text className="text-sm font-semibold text-slate-600">
+        {label}
+      </Text>
+
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        keyboardType={keyboardType}
+        placeholderTextColor="#94A3B8"
+        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800"
+      />
+    </View>
+  );
+}
+
 export default function DashRegistration() {
+  const hoje = new Date();
+  const mesAtual = String(hoje.getMonth() + 1).padStart(2, '0');
+  const anoAtual = String(hoje.getFullYear());
+
   const [doacoes, setDoacoes] = useState<Donation[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
 
-  const [data, setData] = useState('2026-11-09');
+  // CADASTRO MANUAL
+  const [data, setData] = useState(
+    `${anoAtual}-${mesAtual}-${String(hoje.getDate()).padStart(2, '0')}`
+  );
   const [peso, setPeso] = useState('');
 
+  // EDIÇÃO
   const [editandoId, setEditandoId] = useState<number | string | null>(null);
+  const [dataEdicao, setDataEdicao] = useState('');
+  const [pesoEdicao, setPesoEdicao] = useState('');
 
+  // FILTROS DO RESUMO
+  const [filtroResumoDia, setFiltroResumoDia] = useState('');
+  const [filtroResumoMes, setFiltroResumoMes] = useState(mesAtual);
+  const [filtroResumoAno, setFiltroResumoAno] = useState(anoAtual);
+
+  // FILTROS DO HISTÓRICO
   const [filtroDia, setFiltroDia] = useState('');
   const [filtroMes, setFiltroMes] = useState('');
   const [filtroAno, setFiltroAno] = useState('');
@@ -75,6 +126,20 @@ export default function DashRegistration() {
     }
   };
 
+  // REGISTROS DO RESUMO
+  const doacoesResumo = useMemo(() => {
+    return doacoes.filter((item) => {
+      const [ano, mes, dia] = item.data.split('-');
+
+      return (
+        (!filtroResumoDia || dia === filtroResumoDia.padStart(2, '0')) &&
+        (!filtroResumoMes || mes === filtroResumoMes.padStart(2, '0')) &&
+        (!filtroResumoAno || ano === filtroResumoAno)
+      );
+    });
+  }, [doacoes, filtroResumoDia, filtroResumoMes, filtroResumoAno]);
+
+  // REGISTROS DO HISTÓRICO
   const doacoesFiltradas = useMemo(() => {
     return doacoes
       .filter((item) => {
@@ -103,12 +168,13 @@ export default function DashRegistration() {
       .sort((a, b) => b.data.localeCompare(a.data));
   }, [doacoes, filtroDia, filtroMes, filtroAno, filtroResponsavel]);
 
-  const totalKg = doacoesFiltradas.reduce(
+  // TOTAIS DO RESUMO
+  const totalKg = doacoesResumo.reduce(
     (total, item) => total + item.quantidadeKg,
     0
   );
 
-  const totalDoacoes = doacoesFiltradas.length;
+  const totalDoacoes = doacoesResumo.length;
 
   const limparFiltros = () => {
     setFiltroDia('');
@@ -117,6 +183,7 @@ export default function DashRegistration() {
     setFiltroResponsavel('TODOS');
   };
 
+  // CADASTRAR NOVA DOAÇÃO
   const salvarDoacao = async () => {
     const pesoNumerico = Number(peso.replace(',', '.'));
 
@@ -128,56 +195,84 @@ export default function DashRegistration() {
     try {
       setSalvando(true);
 
-      if (editandoId !== null) {
-        await capsService.editarRegistro(
-          editandoId,
-          data,
-          pesoNumerico
-        );
+      await capsService.cadastrarRegistro(data, pesoNumerico);
 
-        Alert.alert('Sucesso', 'Registro atualizado com sucesso!');
-      } else {
-        await capsService.cadastrarRegistro(
-          data,
-          pesoNumerico
-        );
+      Alert.alert('Sucesso', 'Doação cadastrada com sucesso!');
 
-        Alert.alert('Sucesso', 'Doação cadastrada com sucesso!');
-      }
-
-      setEditandoId(null);
       setPeso('');
-
       await carregarRegistros();
-
     } catch (error) {
-      console.error('Erro ao salvar registro:', error);
+      console.error('Erro ao cadastrar registro:', error);
 
       Alert.alert(
         'Erro',
         error instanceof Error
           ? error.message
-          : 'Não foi possível salvar o registro.'
+          : 'Não foi possível cadastrar a doação.'
       );
     } finally {
       setSalvando(false);
     }
   };
 
+  // INICIAR EDIÇÃO NO CARD
   const editarDoacao = (item: Donation) => {
-    if (item.tipo !== 'MANUAL') {
+    if (item.tipo !== 'MANUAL') return;
+
+    setEditandoId(item.id);
+    setDataEdicao(item.data);
+    setPesoEdicao(String(item.quantidadeKg).replace('.', ','));
+  };
+
+  // SALVAR ALTERAÇÕES DO CARD
+  const salvarEdicao = async () => {
+    const pesoNumerico = Number(pesoEdicao.replace(',', '.'));
+
+    if (
+      !dataEdicao ||
+      !pesoEdicao ||
+      !Number.isFinite(pesoNumerico) ||
+      pesoNumerico <= 0
+    ) {
+      Alert.alert('Atenção', 'Informe uma data e um peso válido.');
       return;
     }
 
-    setEditandoId(item.id);
-    setData(item.data);
-    setPeso(String(item.quantidadeKg));
+    try {
+      setSalvando(true);
+
+      await capsService.editarRegistro(
+        editandoId!,
+        dataEdicao,
+        pesoNumerico
+      );
+
+      setEditandoId(null);
+      setDataEdicao('');
+      setPesoEdicao('');
+
+      await carregarRegistros();
+
+      Alert.alert('Sucesso', 'Registro atualizado com sucesso!');
+    } catch (error) {
+      console.error('Erro ao editar registro:', error);
+
+      Alert.alert(
+        'Erro',
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível atualizar o registro.'
+      );
+    } finally {
+      setSalvando(false);
+    }
   };
 
+  // CANCELAR EDIÇÃO
   const cancelarEdicao = () => {
     setEditandoId(null);
-    setPeso('');
-    setData('2026-11-09');
+    setDataEdicao('');
+    setPesoEdicao('');
   };
 
   const excluirDoacao = (item: Donation) => {
@@ -226,35 +321,6 @@ export default function DashRegistration() {
     );
   };
 
-  const Campo = ({
-    label,
-    value,
-    onChangeText,
-    placeholder,
-    keyboardType = 'default',
-  }: {
-    label: string;
-    value: string;
-    onChangeText: (text: string) => void;
-    placeholder: string;
-    keyboardType?: 'default' | 'numeric';
-  }) => (
-    <View className="flex-1 gap-2">
-      <Text className="text-sm font-semibold text-slate-600">
-        {label}
-      </Text>
-
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        keyboardType={keyboardType}
-        placeholderTextColor="#94A3B8"
-        className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-800"
-      />
-    </View>
-  );
-
   return (
     <KeyboardAvoidingView
       className="flex-1"
@@ -280,51 +346,103 @@ export default function DashRegistration() {
             </Text>
           </View>
 
-          {/* RESUMO */}
+          {/* FILTRO DO RESUMO */}
+          <View className="rounded-2xl bg-white p-5 shadow-sm">
+            <Text className="text-lg font-bold text-slate-800">
+              Filtro do resumo das arrecadações
+            </Text>
+
+            <Text className="mb-5 mt-1 text-sm text-slate-500">
+              Consulte as arrecadações de um período específico.
+            </Text>
+
+            <View className="flex-row gap-3">
+              <Campo
+                label="Dia"
+                value={filtroResumoDia}
+                onChangeText={setFiltroResumoDia}
+                placeholder="DD"
+                keyboardType="numeric"
+              />
+
+              <Campo
+                label="Mês"
+                value={filtroResumoMes}
+                onChangeText={setFiltroResumoMes}
+                placeholder="MM"
+                keyboardType="numeric"
+              />
+
+              <Campo
+                label="Ano"
+                value={filtroResumoAno}
+                onChangeText={setFiltroResumoAno}
+                placeholder="AAAA"
+                keyboardType="numeric"
+              />
+            </View>
+
+            <Pressable
+              onPress={() => {
+                setFiltroResumoDia('');
+                setFiltroResumoMes(mesAtual);
+                setFiltroResumoAno(anoAtual);
+              }}
+              className="mt-4 self-start"
+            >
+              <Text className="font-semibold" style={{ color: COR_PRINCIPAL }}>
+                Restaurar período atual
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* RESUMO DAS ARRECADAÇÕES */}
           <View className="rounded-2xl bg-white p-5 shadow-sm">
             <Text className="mb-4 text-lg font-bold text-slate-800">
               Resumo das arrecadações
             </Text>
 
             <View className="flex-row gap-3">
-              <View className="flex-1 rounded-xl bg-amber-50 p-4">
-                <Text className="text-sm font-medium text-amber-800">
+              <View className="flex-1 rounded-xl bg-purple-50 p-4">
+                <Text className="text-sm font-medium text-slate-600">
                   Total arrecadado
                 </Text>
 
-                <Text className="mt-2 text-2xl font-bold text-amber-700">
+                <Text
+                  className="mt-2 text-2xl font-bold"
+                  style={{ color: COR_PRINCIPAL }}
+                >
                   {totalKg.toFixed(2).replace('.', ',')} kg
                 </Text>
 
-                <Text className="mt-1 text-xs text-amber-700">
+                <Text className="mt-1 text-xs text-slate-500">
                   Em tampinhas
                 </Text>
               </View>
 
-              <View className="flex-1 rounded-xl bg-blue-50 p-4">
-                <Text className="text-sm font-medium text-blue-800">
+              <View className="flex-1 rounded-xl bg-slate-100 p-4">
+                <Text className="text-sm font-medium text-slate-600">
                   Doações
                 </Text>
 
-                <Text className="mt-2 text-2xl font-bold text-blue-700">
+                <Text className="mt-2 text-2xl font-bold text-slate-800">
                   {totalDoacoes}
                 </Text>
 
-                <Text className="mt-1 text-xs text-blue-700">
+                <Text className="mt-1 text-xs text-slate-500">
                   Registros encontrados
                 </Text>
               </View>
             </View>
 
             <Text className="mt-4 text-xs text-slate-400">
-              Os valores são atualizados conforme os filtros selecionados.
+              Os valores são atualizados conforme o filtro do resumo.
             </Text>
           </View>
-
           {/* CADASTRO MANUAL */}
           <View className="rounded-2xl bg-white p-5 shadow-sm">
             <Text className="text-lg font-bold text-slate-800">
-              {editandoId !== null ? 'Editar doação' : 'Cadastro manual'}
+              Cadastro manual
             </Text>
 
             <Text className="mb-5 mt-1 text-sm text-slate-500">
@@ -344,21 +462,24 @@ export default function DashRegistration() {
                 value={peso}
                 onChangeText={setPeso}
                 placeholder="Ex.: 5,5"
-                keyboardType="numeric"
+                keyboardType="decimal-pad"
               />
 
-              <View className="rounded-xl bg-amber-50 p-4">
-                <Text className="text-sm font-medium text-amber-800">
+              <View className="rounded-xl bg-purple-50 p-4">
+                <Text className="text-sm font-medium text-slate-600">
                   Unidades estimadas
                 </Text>
 
-                <Text className="mt-1 text-xl font-bold text-amber-700">
+                <Text
+                  className="mt-1 text-xl font-bold"
+                  style={{ color: COR_PRINCIPAL }}
+                >
                   {peso && Number.isFinite(Number(peso.replace(',', '.')))
                     ? converterUnidades(Number(peso.replace(',', '.'))).toLocaleString('pt-BR')
                     : '0'}
                 </Text>
 
-                <Text className="mt-1 text-xs text-amber-700">
+                <Text className="mt-1 text-xs text-slate-500">
                   Estimativa de 500 tampinhas por kg.
                 </Text>
               </View>
@@ -366,35 +487,24 @@ export default function DashRegistration() {
               <Pressable
                 onPress={salvarDoacao}
                 disabled={salvando}
-                className={`items-center rounded-xl py-4 ${salvando ? 'bg-amber-300' : 'bg-amber-500 active:bg-amber-600'
+                className={`items-center rounded-xl py-4 ${salvando ? 'bg-purple-300' : 'bg-purple-600 active:bg-purple-700'
                   }`}
+                style={!salvando ? { backgroundColor: COR_PRINCIPAL } : undefined}
               >
                 <Text className="font-bold text-white">
-                  {salvando
-                    ? 'Salvando...'
-                    : editandoId !== null
-                      ? 'Salvar alterações'
-                      : 'Cadastrar doação'}
+                  {salvando ? 'Salvando...' : 'Cadastrar doação'}
                 </Text>
               </Pressable>
-
-              {editandoId !== null && (
-                <Pressable
-                  onPress={cancelarEdicao}
-                  className="items-center rounded-xl border border-slate-200 py-3"
-                >
-                  <Text className="font-semibold text-slate-600">
-                    Cancelar edição
-                  </Text>
-                </Pressable>
-              )}
             </View>
           </View>
-
-          {/* FILTROS */}
+          {/* FILTROS DO HISTÓRICO */}
           <View className="rounded-2xl bg-white p-5 shadow-sm">
-            <Text className="mb-4 text-lg font-bold text-slate-800">
-              Filtros
+            <Text className="text-lg font-bold text-slate-800">
+              Filtros do histórico
+            </Text>
+
+            <Text className="mb-5 mt-1 text-sm text-slate-500">
+              Filtre as doações exibidas no histórico.
             </Text>
 
             <View className="flex-row gap-3">
@@ -432,32 +542,40 @@ export default function DashRegistration() {
                 { label: 'Todos', value: 'TODOS' },
                 { label: 'Administradora', value: 'MANUAL' },
                 { label: 'Pontos de coleta', value: 'BALANCA' },
-              ].map((opcao) => (
-                <Pressable
-                  key={opcao.value}
-                  onPress={() => setFiltroResponsavel(opcao.value)}
-                  className={`rounded-full px-4 py-2 ${filtroResponsavel === opcao.value
-                    ? 'bg-blue-600'
-                    : 'bg-slate-100'
-                    }`}
-                >
-                  <Text
-                    className={`text-xs font-semibold ${filtroResponsavel === opcao.value
-                      ? 'text-white'
-                      : 'text-slate-600'
+              ].map((opcao) => {
+                const selecionado = filtroResponsavel === opcao.value;
+
+                return (
+                  <Pressable
+                    key={opcao.value}
+                    onPress={() => setFiltroResponsavel(opcao.value)}
+                    className={`rounded-full px-4 py-2 ${selecionado ? 'bg-purple-100' : 'bg-slate-100'
                       }`}
+                    style={
+                      selecionado
+                        ? { borderWidth: 1, borderColor: COR_PRINCIPAL }
+                        : undefined
+                    }
                   >
-                    {opcao.label}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      className={`text-xs font-semibold ${selecionado ? 'text-purple-800' : 'text-slate-600'
+                        }`}
+                    >
+                      {opcao.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <Pressable
               onPress={limparFiltros}
-              className="mt-4 self-start"
+              className="mt-5 self-start"
             >
-              <Text className="font-semibold text-blue-600">
+              <Text
+                className="font-semibold"
+                style={{ color: COR_PRINCIPAL }}
+              >
                 Limpar filtros
               </Text>
             </Pressable>
@@ -478,21 +596,46 @@ export default function DashRegistration() {
             {/* LEGENDA */}
             <View className="flex-row flex-wrap gap-4">
               <View className="flex-row items-center gap-2">
-                <View className="h-3 w-3 rounded-full bg-blue-500" />
+                <View
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: COR_PRINCIPAL }}
+                />
                 <Text className="text-xs text-slate-600">
                   Registro manual
                 </Text>
               </View>
 
               <View className="flex-row items-center gap-2">
-                <View className="h-3 w-3 rounded-full bg-emerald-500" />
+                <View className="h-3 w-3 rounded-full bg-slate-400" />
                 <Text className="text-xs text-slate-600">
                   Balança IoT
                 </Text>
               </View>
             </View>
 
-            {doacoesFiltradas.length === 0 ? (
+            {/* CARREGAMENTO, ERRO OU HISTÓRICO */}
+            {carregando ? (
+              <View className="rounded-2xl bg-white p-8">
+                <Text className="text-center text-slate-500">
+                  Carregando registros...
+                </Text>
+              </View>
+            ) : erro ? (
+              <View className="rounded-2xl bg-white p-8">
+                <Text className="text-center text-red-600">
+                  {erro}
+                </Text>
+
+                <Pressable
+                  onPress={carregarRegistros}
+                  className="mt-4 items-center rounded-xl bg-slate-100 py-3"
+                >
+                  <Text className="font-bold text-slate-700">
+                    Tentar novamente
+                  </Text>
+                </Pressable>
+              </View>
+            ) : doacoesFiltradas.length === 0 ? (
               <View className="rounded-2xl bg-white p-8">
                 <Text className="text-center text-slate-500">
                   Nenhuma doação encontrada.
@@ -501,64 +644,102 @@ export default function DashRegistration() {
             ) : (
               doacoesFiltradas.map((item) => {
                 const manual = item.tipo === 'MANUAL';
+                const emEdicao = editandoId === item.id && manual;
 
                 return (
                   <View
                     key={`${item.tipo}-${item.id}`}
-                    className={`rounded-2xl border-l-4 bg-white p-5 shadow-sm ${manual
-                      ? 'border-l-blue-500'
-                      : 'border-l-emerald-500'
-                      }`}
+                    className="rounded-2xl border-l-4 bg-white p-5 shadow-sm"
+                    style={{
+                      borderLeftColor: manual ? COR_PRINCIPAL : '#94A3B8',
+                    }}
                   >
+                    {/* CABEÇALHO DO CARD */}
                     <View className="flex-row items-center justify-between">
                       <Text className="text-base font-bold text-slate-800">
                         Doação #{item.id}
                       </Text>
 
                       <View
-                        className={`rounded-full px-3 py-1 ${manual ? 'bg-blue-50' : 'bg-emerald-50'
+                        className={`rounded-full px-3 py-1 ${manual ? 'bg-purple-50' : 'bg-slate-100'
                           }`}
                       >
                         <Text
-                          className={`text-xs font-bold ${manual ? 'text-blue-700' : 'text-emerald-700'
-                            }`}
+                          className="text-xs font-bold"
+                          style={{
+                            color: manual ? COR_PRINCIPAL : '#64748B',
+                          }}
                         >
                           {manual ? 'MANUAL' : 'BALANÇA IoT'}
                         </Text>
                       </View>
                     </View>
 
-                    <View className="mt-4 gap-3">
-                      <View className="flex-row justify-between">
+                    {/* INFORMAÇÕES DO CARD */}
+                    <View className="mt-4 gap-4">
+
+                      {/* DATA */}
+                      <View className="gap-2">
                         <Text className="text-sm text-slate-500">
-                          Data
+                          Data da doação
                         </Text>
 
-                        <Text className="font-semibold text-slate-700">
-                          {formatarData(item.data)}
-                        </Text>
+                        {emEdicao ? (
+                          <TextInput
+                            value={dataEdicao}
+                            onChangeText={setDataEdicao}
+                            placeholder="AAAA-MM-DD"
+                            autoFocus
+                            placeholderTextColor="#94A3B8"
+                            className="rounded-xl border bg-purple-50 px-4 py-3 text-base text-slate-800"
+                            style={{ borderColor: COR_PRINCIPAL }}
+                          />
+                        ) : (
+                          <Text className="font-semibold text-slate-700">
+                            {formatarData(item.data)}
+                          </Text>
+                        )}
                       </View>
 
-                      <View className="flex-row justify-between">
+                      {/* QUANTIDADE */}
+                      <View className="gap-2">
                         <Text className="text-sm text-slate-500">
-                          Quantidade
+                          Quantidade em kg
                         </Text>
 
-                        <Text className="font-semibold text-slate-700">
-                          {item.quantidadeKg.toFixed(2).replace('.', ',')} kg
-                        </Text>
+                        {emEdicao ? (
+                          <TextInput
+                            value={pesoEdicao}
+                            onChangeText={setPesoEdicao}
+                            placeholder="Ex.: 5,5"
+                            keyboardType="decimal-pad"
+                            placeholderTextColor="#94A3B8"
+                            className="rounded-xl border bg-purple-50 px-4 py-3 text-base text-slate-800"
+                            style={{ borderColor: COR_PRINCIPAL }}
+                          />
+                        ) : (
+                          <Text className="font-semibold text-slate-700">
+                            {item.quantidadeKg.toFixed(2).replace('.', ',')} kg
+                          </Text>
+                        )}
                       </View>
 
+                      {/* UNIDADES ESTIMADAS */}
                       <View className="flex-row justify-between">
                         <Text className="text-sm text-slate-500">
                           Unidades estimadas
                         </Text>
 
                         <Text className="font-semibold text-slate-700">
-                          {converterUnidades(item.quantidadeKg).toLocaleString('pt-BR')}
+                          {converterUnidades(
+                            emEdicao
+                              ? Number(pesoEdicao.replace(',', '.')) || 0
+                              : item.quantidadeKg
+                          ).toLocaleString('pt-BR')}
                         </Text>
                       </View>
 
+                      {/* RESPONSÁVEL */}
                       <View className="border-t border-slate-100 pt-3">
                         <Text className="text-sm text-slate-500">
                           Responsável
@@ -570,26 +751,60 @@ export default function DashRegistration() {
                       </View>
                     </View>
 
+                    {/* BOTÕES */}
                     <View className="mt-4 flex-row gap-3">
-                      {manual && (
-                        <Pressable
-                          onPress={() => editarDoacao(item)}
-                          className="flex-1 items-center rounded-xl bg-blue-50 py-3"
-                        >
-                          <Text className="font-bold text-blue-700">
-                            Editar
-                          </Text>
-                        </Pressable>
-                      )}
+                      {emEdicao ? (
+                        <>
+                          <Pressable
+                            onPress={salvarEdicao}
+                            disabled={salvando}
+                            className="flex-1 items-center rounded-xl py-3"
+                            style={{
+                              backgroundColor: salvando ? '#BFA8D8' : COR_PRINCIPAL,
+                            }}
+                          >
+                            <Text className="font-bold text-white">
+                              {salvando ? 'Salvando...' : 'Salvar'}
+                            </Text>
+                          </Pressable>
 
-                      <Pressable
-                        onPress={() => excluirDoacao(item)}
-                        className="flex-1 items-center rounded-xl bg-red-50 py-3"
-                      >
-                        <Text className="font-bold text-red-600">
-                          Excluir
-                        </Text>
-                      </Pressable>
+                          <Pressable
+                            onPress={cancelarEdicao}
+                            disabled={salvando}
+                            className="flex-1 items-center rounded-xl bg-slate-100 py-3"
+                          >
+                            <Text className="font-bold text-slate-600">
+                              Cancelar
+                            </Text>
+                          </Pressable>
+                        </>
+                      ) : (
+                        <>
+                          {manual && (
+                            <Pressable
+                              onPress={() => editarDoacao(item)}
+                              className="flex-1 items-center rounded-xl bg-purple-50 py-3"
+                            >
+                              <Text
+                                className="font-bold"
+                                style={{ color: COR_PRINCIPAL }}
+                              >
+                                Editar
+                              </Text>
+                            </Pressable>
+                          )}
+
+                          <Pressable
+                            onPress={() => excluirDoacao(item)}
+                            className="flex-1 items-center rounded-xl bg-red-100 py-3 active:bg-red-200"
+                          >
+                            <Text className="font-bold text-red-600">
+                              Excluir
+                            </Text>
+                          </Pressable>
+
+                        </>
+                      )}
                     </View>
                   </View>
                 );
