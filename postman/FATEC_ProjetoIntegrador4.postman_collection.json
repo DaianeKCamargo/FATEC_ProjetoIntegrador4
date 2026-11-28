@@ -1,0 +1,799 @@
+{
+  "info": {
+    "_postman_id": "d9085c14-c33e-4e56-a74b-2e98f75b8b0d",
+    "name": "FATEC Projeto Integrador 4 - APIs",
+    "description": "Requests de teste para os microsservicos em services. Configure e selecione o environment FATEC APIs antes de executar. Os testes armazenam IDs e o JWT para reutilizacao.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Cadastro de animais",
+      "item": [
+        {
+          "name": "Listar animais",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{animal_base_url}}/api/animals-registration"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Retorna 200 e uma lista', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Criar registro de animal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"2026-01-15\",\n  \"tipoAnimal\": \"Cao\",\n  \"quantidade\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{animal_base_url}}/api/animals-registration"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cria registro e guarda o ID', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.exist;",
+                  "  pm.environment.set('animal_id', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar registro criado",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{animal_base_url}}/api/animals-registration/{{animal_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Encontra o registro', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().id).to.eql(Number(pm.environment.get('animal_id')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Atualizar registro criado",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"2026-01-16\",\n  \"tipoAnimal\": \"Gato\",\n  \"quantidade\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{animal_base_url}}/api/animals-registration/{{animal_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Atualiza registro', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().tipoAnimal).to.eql('Gato');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Excluir registro criado",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{animal_base_url}}/api/animals-registration/{{animal_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Exclui registro', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Autenticacao e administradores",
+      "item": [
+        {
+          "name": "Health da API de autenticacao",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{auth_base_url}}/api/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('API de autenticacao disponivel', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login de administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{admin_username}}\",\n  \"senha\": \"{{admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auth_base_url}}/api/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login retorna JWT', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.token).to.be.a('string');",
+                  "  pm.environment.set('admin_token', body.token);",
+                  "  pm.environment.set('admin_id', body.admin.idAdmin);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar administrador autenticado",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{auth_base_url}}/api/admin/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('JWT autorizado', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().admin).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Listar administradores",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              }
+            ],
+            "url": "{{auth_base_url}}/api/admins"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Lista administradores', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cadastrar administrador",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{new_admin_username}}\",\n  \"emailUser\": \"{{new_admin_email}}\",\n  \"senha\": \"{{new_admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auth_base_url}}/api/admins"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cadastra administrador e guarda o ID', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.admin.idAdmin).to.exist;",
+                  "  pm.environment.set('new_admin_id', body.admin.idAdmin);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Editar administrador cadastrado",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{new_admin_username}}\",\n  \"emailUser\": \"{{new_admin_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auth_base_url}}/api/admins/{{new_admin_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Atualiza administrador', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Recuperacao de senha",
+      "item": [
+        {
+          "name": "Solicitar token por e-mail",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailUser\": \"{{admin_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auth_base_url}}/api/password-reset/solicitar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Solicitacao aceita sem revelar cadastro', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Validar token recebido",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailUser\": \"{{admin_email}}\",\n  \"resetToken\": \"{{reset_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auth_base_url}}/api/password-reset/validar"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Token valido', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Redefinir senha",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailUser\": \"{{admin_email}}\",\n  \"resetToken\": \"{{reset_token}}\",\n  \"novaSenha\": \"{{new_admin_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{auth_base_url}}/api/password-reset/redefinir"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Senha redefinida', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Pontos de coleta",
+      "item": [
+        {
+          "name": "Listar pontos aprovados",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{collection_points_base_url}}/pontos"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Retorna pontos aprovados', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body).to.be.an('array');",
+                  "  if (body.length > 0) pm.environment.set('collection_point_id', body[0].id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Buscar ponto por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{collection_points_base_url}}/pontos/{{collection_point_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Busca ponto aprovado', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().id).to.exist;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dashboard de tampinhas",
+      "item": [
+        {
+          "name": "Listar historico de tampinhas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{caps_base_url}}/api/caps"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Retorna historico', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cadastrar registro manual",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.environment.set('caps_test_date', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Cria registro manual', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.registro).to.exist;",
+                  "  pm.environment.set('caps_record_id', body.registro.id);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"{{caps_test_date}}\",\n  \"quantidade_kg\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{caps_base_url}}/api/caps"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Registro de doacoes",
+      "item": [
+        {
+          "name": "Registrar doacao de teste",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"peso\": 0.5,\n  \"pontoId\": \"{{donation_point_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{donations_base_url}}/doacoes"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Registra doacao e guarda o ID', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.id).to.exist;",
+                  "  pm.environment.set('donation_id', body.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar doacao por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{donations_base_url}}/doacoes/{{donation_id}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Consulta doacao', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().id).to.eql(Number(pm.environment.get('donation_id')));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Consultar ultima doacao do ponto de teste",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{donations_base_url}}/pontos/{{donation_point_id}}/ultima-doacao"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Retorna a ultima doacao do ponto', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().pontoId).to.eql(pm.environment.get('donation_point_id'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Servico de e-mail",
+      "item": [
+        {
+          "name": "Health do servico de e-mail",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{reset_email_base_url}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Servico de e-mail disponivel', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enviar token de teste",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"token\": \"1234567890abcdef\",\n  \"userName\": \"Teste Postman\",\n  \"expiresInMinutes\": 15,\n  \"subject\": \"Teste de envio Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{reset_email_base_url}}/api/reset-pass-email/send-token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Payload aceito ou enviado', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Balança - HTTP",
+      "item": [
+        {
+          "name": "Verificar servidor e banco",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{weight_http_base_url}}/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Servidor e banco disponiveis', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Enviar leitura de peso",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pontoId\": \"{{donation_point_id}}\",\n  \"peso\": 0.5\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{weight_http_base_url}}/peso"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Leitura recebida', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().leitura.pontoId).to.eql(pm.environment.get('donation_point_id'));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
