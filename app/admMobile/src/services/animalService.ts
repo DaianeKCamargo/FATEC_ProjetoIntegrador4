@@ -1,6 +1,5 @@
 
-const API_URL = `${process.env.EXPO_PUBLIC_API_URL}/api/animals-registration`;
-
+const API_URL = `${process.env.EXPO_PUBLIC_ANIMALS_API_URL}/api/animals-registration`;
 export interface Animal {
   id: number;
   data: string;
