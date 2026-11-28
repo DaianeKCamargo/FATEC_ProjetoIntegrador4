@@ -14,7 +14,7 @@ const express = require("express");
 const relatoriosAnimaisRoutes = require("./src/routes/animalRoutes");
 
 const app = express();
-const PORT = process.env.RELATORIO_ANIMAIS_PORT || 5503;
+const PORT = process.env.PORT || process.env.RELATORIO_ANIMAIS_PORT || 5503;
 
 // Configurações
 app.use(cors());
