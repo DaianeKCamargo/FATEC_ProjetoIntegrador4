@@ -45,7 +45,8 @@ async function postToBalance(
   input: Record<string, string | number>
 ): Promise<BalanceResponse> {
   const controller = new AbortController();
-  const timeoutMs = path === "/calibrate" ? 100000 : 20000;
+  const timeoutMs =
+    path === "/calibrate" ? 100000 : path === "/configure" ? 35000 : 20000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {

@@ -300,8 +300,48 @@ void receberConfiguracao()
         return;
     }
 
+    WiFi.mode(WIFI_AP_STA);
+    WiFi.begin(novaSsid.c_str(), novaSenha.c_str());
+
+    const unsigned long inicioAutenticacao = millis();
+    const unsigned long timeoutAutenticacao = 20000;
+    while (WiFi.status() != WL_CONNECTED &&
+           millis() - inicioAutenticacao < timeoutAutenticacao)
+    {
+        delay(250);
+    }
+
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        wl_status_t status = WiFi.status();
+        WiFi.disconnect(false, false);
+        WiFi.mode(WIFI_AP);
+
+        if (status == WL_NO_SSID_AVAIL)
+        {
+            responderErroConfiguracao(
+                422,
+                "Rede nao encontrada. Confira o nome da rede e se ela opera em 2.4 GHz.");
+        }
+        else if (status == WL_CONNECT_FAILED)
+        {
+            responderErroConfiguracao(
+                422,
+                "Falha na autenticacao do Wi-Fi. Confira a senha e o tipo de seguranca da rede.");
+        }
+        else
+        {
+            responderErroConfiguracao(
+                422,
+                "Nao foi possivel conectar ao Wi-Fi. Confira a rede, a senha e o sinal.");
+        }
+        return;
+    }
+
     if (!preferencias.begin("balanca", false))
     {
+        WiFi.disconnect(false, false);
+        WiFi.mode(WIFI_AP);
         responderErroConfiguracao(500, "Nao foi possivel abrir o armazenamento.");
         return;
     }
@@ -314,13 +354,15 @@ void receberConfiguracao()
 
     if (!configuracaoSalva)
     {
+        WiFi.disconnect(false, false);
+        WiFi.mode(WIFI_AP);
         responderErroConfiguracao(500, "Nao foi possivel salvar a configuracao.");
         return;
     }
 
-    Serial.println("Wi-Fi e ponto de coleta salvos.");
+    Serial.println("Wi-Fi autenticado e configuracao salva.");
     JsonDocument resposta;
-    resposta["message"] = "Configuração salva. A balança será reiniciada.";
+    resposta["message"] = "Wi-Fi autenticado. Configuração salva.";
     String corpo;
     serializeJson(resposta, corpo);
     servidorConfiguracao.send(200, "application/json", corpo);

@@ -66,12 +66,12 @@ O projeto utiliza o PlatformIO com:
 2. Conecte o celular à rede `TamPets-Config` da balança. Se o celular avisar que não há internet, mantenha a conexão e abra **Configurações** no app administrativo.
 3. Selecione o ponto de coleta. Com a plataforma vazia, toque em **Zerar balança sem peso**.
 4. Com a plataforma vazia, toque em zerar; o ESP32 aguarda 3 segundos e registra o offset com `tare(20)`. Coloque um peso conhecido, informe o valor em quilogramas e toque em **Calibrar com peso de referência**. O firmware aguarda 1 minuto para o peso estabilizar, coleta dez medias com `get_value(10)` (que ja desconta a tara) e calcula `fator = leitura bruta / peso conhecido em kg`. Ele confere novas leituras com `get_units(5)` e só salva o fator se a oscilacao e a diferenca ficarem dentro dos limites. A tela mostra o peso verificado e o fator interno em contagens/kg; o fator nao e o peso e pode ter sinal negativo conforme a polaridade da celula de carga.
-5. Informe o nome e a senha da rede Wi-Fi do local (2,4 GHz) e envie a configuração. O ESP32 salva o Wi-Fi e o ID do ponto e reinicia. A mensagem do app confirma que os dados foram salvos, não que a conexão foi concluída.
+5. Informe o nome e a senha da rede Wi-Fi do local (2,4 GHz) e envie a configuração. O ESP32 testa a autenticação antes de salvar. Se não encontrar a rede ou a senha/segurança estiver incorreta, o app informa o problema e não substitui os dados salvos. Após autenticar, o ESP32 salva o Wi-Fi e o ID do ponto e reinicia.
 6. Para calibrar ou configurar novamente, mantenha o ESP32 ligado e segure o botão **BOOT** por 5 segundos; conecte o celular à rede `TamPets-Config` que aparecer e repita o processo.
 
 A rede de configuração é aberta e fica ativa enquanto faltar configuração ou após a ativação física pelo botão BOOT. A senha da rede do local é enviada diretamente ao ESP32 e não é armazenada no banco de dados. O offset de zero e o fator são preservados na memória do ESP32, inclusive após reinicializações.
 
-No monitor serial, `Estado do Wi-Fi: conectado` confirma a conexão. `rede nao encontrada` indica que o SSID não foi localizado; `falha de conexao` indica que a rede ou senha deve ser conferida. O ESP32 envia as leituras ao servidor somente quando conectado ao Wi-Fi.
+No monitor serial, `Estado do Wi-Fi: conectado` confirma a conexão. `rede nao encontrada` indica que o SSID não foi localizado; `falha de conexao` indica que a rede ou senha deve ser conferida. O app também valida a conexão durante a configuração e apresenta erros distintos para rede não encontrada e falha de autenticação. O ESP32 envia as leituras ao servidor somente quando conectado ao Wi-Fi.
 
 Com a plataforma vazia, leituras abaixo de zero sao enviadas como `0.000 kg`, para que a interface continue mostrando zero em vez de manter um valor antigo.
 

@@ -41,6 +41,7 @@ export default function Settings() {
   const [search, setSearch] = useState("");
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [referenceWeight, setReferenceWeight] = useState("");
   const [loadingPoints, setLoadingPoints] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -656,9 +657,10 @@ export default function Settings() {
             senha da rede. Para uma rede aberta, deixe o campo de senha vazio.
           </Text>
           <Text className="text-sm leading-5 text-slate-700">
-            <Text className="font-bold">3. Envie a configuração:</Text> toque
-            no botão ao final da página. A balança salvará o ponto e os dados
-            do Wi-Fi e será reiniciada; aguarde e verifique se conectou à rede.
+            <Text className="font-bold">3. Valide e envie:</Text> toque no
+            botão ao final da página. A balança verificará se consegue
+            autenticar na rede antes de salvar. Se a senha estiver incorreta
+            ou a rede não for encontrada, será exibido um erro.
           </Text>
         </View>
 
@@ -680,18 +682,35 @@ export default function Settings() {
         <Text className="mb-2 font-semibold text-slate-700">
           Senha da rede Wi-Fi
         </Text>
-        <TextInput
-          className="mb-5 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-800"
-          placeholder="Deixe vazio para rede aberta"
-          placeholderTextColor="#94A3B8"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoCapitalize="none"
-          autoCorrect={false}
-          maxLength={63}
-          accessibilityLabel="Senha da rede Wi-Fi"
-        />
+        <View className="mb-5 flex-row items-center rounded-xl border border-slate-300 bg-white px-4">
+          <TextInput
+            className="flex-1 py-3 text-base text-slate-800"
+            placeholder="Deixe vazio para rede aberta"
+            placeholderTextColor="#94A3B8"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!passwordVisible}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={63}
+            accessibilityLabel="Senha da rede Wi-Fi"
+          />
+          <TouchableOpacity
+            className="ml-2 p-2"
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            accessibilityRole="button"
+            accessibilityLabel={
+              passwordVisible ? "Ocultar senha" : "Mostrar senha"
+            }
+            accessibilityState={{ selected: passwordVisible }}
+          >
+            <Ionicons
+              name={passwordVisible ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color="#64748B"
+            />
+          </TouchableOpacity>
+        </View>
 
         {feedback && (
           <View
