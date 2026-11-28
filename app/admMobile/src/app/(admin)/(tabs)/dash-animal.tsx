@@ -327,7 +327,7 @@ export default function DashAnimal() {
                 onPress={() => change('tipoAnimal', type)}
                 className={`flex-1 items-center rounded-xl border p-3 ${
                   values.tipoAnimal === type
-                    ? 'border-green-700 bg-green-700'
+                    ? 'border-[#8754BF] bg-[#8754BF]'
                     : 'border-gray-300 bg-white'
                 }`}
               >
@@ -364,7 +364,7 @@ export default function DashAnimal() {
           <Pressable
             onPress={editing ? updateAnimal : createAnimal}
             disabled={saving}
-            className="flex-1 items-center rounded-xl bg-green-700 py-3"
+            className="flex-1 items-center rounded-xl bg-[#8754BF] py-3"
           >
             <Text className="font-bold text-white">
               {saving ? 'Salvando...' : editing ? 'Salvar alterações' : 'Cadastrar'}
@@ -433,7 +433,7 @@ export default function DashAnimal() {
               Gatos
             </Text>
 
-            <Text className="mt-2 text-3xl font-bold text-green-700">
+            <Text className="mt-2 text-3xl font-bold text-[#8754BF]">
               {summary.gatos.toLocaleString('pt-BR')}
             </Text>
 
@@ -447,7 +447,7 @@ export default function DashAnimal() {
               Cachorros
             </Text>
 
-            <Text className="mt-2 text-3xl font-bold text-green-700">
+            <Text className="mt-2 text-3xl font-bold text-[#8754BF]">
               {summary.cachorros.toLocaleString('pt-BR')}
             </Text>
 
@@ -497,7 +497,7 @@ export default function DashAnimal() {
               onPress={() => setFilterType(type)}
               className={`flex-1 items-center rounded-xl border p-2 ${
                 filterType === type
-                  ? 'border-green-700 bg-green-700'
+                  ? 'border-[#8754BF] bg-[#8754BF]'
                   : 'border-gray-300 bg-white'
               }`}
             >
@@ -521,7 +521,7 @@ export default function DashAnimal() {
           }}
           className="mt-4 self-start"
         >
-          <Text className="font-semibold text-green-700">
+          <Text className="font-semibold text-[#8754BF]">
             Limpar filtros
           </Text>
         </Pressable>
